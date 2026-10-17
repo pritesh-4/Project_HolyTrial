@@ -37,14 +37,14 @@ updated: 2026-10-17T12:50:00+05:30
 ---
 
 ### Phase 1: Experience Bible and Art Direction
-**Status:** ⬜ Not Started
+**Status:** ✅ Complete (Proposal Delivered in docs/design/phase-1-art-direction.md)
 **Objective:** Formulate the fictional institution's lore, visual grammar, token system, materials, lighting, typography, and sound design principles.
 **Depends on:** Phase 0
 
 **Plans:**
-- [ ] Plan 1.1: Author the Experience Bible (world lore, the Obsidian Tribunal rules, ritual vocabulary).
-- [ ] Plan 1.2: Establish Visual Direction Board & Design Tokens (color system, typography, geometric glyphs, artifact designs).
-- [ ] Plan 1.3: Define Sound Direction & Audio Palette (ambient stone hums, gavel resonance, objection chimes).
+- [x] Plan 1.1: Author the Experience Bible & Art Direction Proposal (docs/design/phase-1-art-direction.md).
+- [x] Plan 1.2: Establish Visual Direction Board & Design Tokens (color system, typography, geometric glyphs, artifact designs).
+- [x] Plan 1.3: Define Sound Direction, Motion Grammar & Performance Guardrails.
 
 ---
 

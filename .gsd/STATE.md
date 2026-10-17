@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-17T13:10:00+05:30
+updated: 2026-10-17T13:40:00+05:30
 ---
 
 # Project State — HolyTrial (Hype Court)
@@ -7,46 +7,47 @@ updated: 2026-10-17T13:10:00+05:30
 ## Current Position
 
 **Milestone:** v1.0
-**Phase:** Infrastructure Setup (Frontend Toolchain & Engineering Guardrails)
+**Phase:** Implementation Phase 2 — The Case Dossier: Entering the Court
 **Status:** complete
-**Plan:** Infrastructure bootstrap completed and verified
+**Plan:** The Threshold-to-Case-Dossier transition, claim formulation, validation, and case-registration state implemented and verified
 
 ## Last Action
 
-Completed Frontend Toolchain, Dependencies & Engineering Guardrails setup:
-- Installed and verified all core runtime libraries (`react-router-dom`, `three`, `@react-three/fiber`, `@react-three/drei`, `gsap`, `@gsap/react`, `motion`, `lucide-react`, `clsx`, `tailwind-merge`, `tailwindcss`, `@tailwindcss/vite`).
-- Configured TypeScript with strict type-checking across app and node configs.
-- Configured ESLint 9 flat config integrating `@eslint/js`, `typescript-eslint`, `eslint-plugin-react-hooks`, `eslint-plugin-react-refresh`, `eslint-plugin-jsx-a11y`, and `eslint-config-prettier`.
-- Configured Prettier with `prettier-plugin-tailwindcss` and scoping ignores for non-frontend artifacts.
-- Configured Vitest with `jsdom`, `@testing-library/react`, `@testing-library/jest-dom`, and `passWithNoTests: true`.
-- Configured Husky v9 and `lint-staged` with pre-commit hooks for staged file quality.
-- Created `.github/workflows/frontend-ci.yml` verifying clean install, formatting, linting, typechecking, tests, and production build with least-privilege permissions.
-- Verified all quality checks locally (`npm run check`, `npm run build`, `npm audit`). 0 vulnerabilities, 0 errors.
+Completed Implementation Phase 2: The Case Dossier: Entering the Court:
+- Implemented `src/types/case.ts` defining `CaseCategory`, `DraftCase`, and `ExampleClaim` data structures.
+- Implemented `src/utils/caseStorage.ts` for draft and case ID generation (`CASE-YYYY-XXXX`) and local persistence via `localStorage`.
+- Implemented `src/components/CaseDossier.tsx` supporting the complete 3-stage dossier workflow (`edit` -> `review` -> `registered`):
+  - Institutional header displaying provisional docket ID, stage badge, and seal.
+  - Claim entry surface with prompt "WHAT CLAIM SHALL BE EXAMINED?", character counter (max 400), and live local validation (minimum 15 characters, declarative phrasing tip).
+  - 3 demonstration precedent claims with real text population.
+  - 6 jurisdictional category selectors (`Technology & AI`, `Science & Energy`, `Products & Business`, `History & Governance`, `Predictions & Opinions`, `Other / Unspecified`).
+  - Formal Case Folio review screen detailing the confirmed proposition, category, and protocol disclosures before opening.
+  - Case-registration confirmation state generating a real local draft case (`status: "Awaiting evidence"`), pulsing Court Seal, docket metadata, and clear disclosure that evidence collection has not yet begun.
+  - Reversible navigation ("RETURN TO THRESHOLD" and "PREPARE ANOTHER DRAFT").
+- Updated `src/components/LandingPage.tsx` with smooth camera glide transition into the Case Dossier upon clicking "ENTER THE COURT".
+- Added comprehensive unit and integration tests in `src/test/CaseDossier.test.tsx` (6 tests) and updated `src/test/LandingPage.test.tsx` (4 tests).
+- All 10 tests passing; verified `tsc -b`, `eslint .`, `prettier --check .`, and `vite build` all exit code 0.
 
 ## Next Steps
 
-1. Present Frontend Infrastructure & Toolchain Report to Product Owner.
-2. Await explicit approval before beginning design-first implementation.
-3. Upon approval, proceed to **Phase 1: Experience Bible and Art Direction** (no application code until approved).
+1. Present the completed Case Dossier experience to Product Owner for review and inspection.
+2. Await explicit Product Owner approval before proceeding to the next milestone (The Summoning: Evidence Collection).
+3. Strictly maintain scope limits: do not implement Tavily Search API, NVIDIA NIM integration, or the courtroom trial interfaces until authorized.
 
 ## Active Decisions
 
 | Decision | Choice | Made | Affects |
 |----------|--------|------|---------|
-| Implementation Sequence | UI/UX & Mocked Frontend First | 2026-10-17 | All phases |
-| 3D Engine | React Three Fiber (@react-three/fiber + drei) | 2026-10-17 | Phase 3, Phase 4 |
-| Motion System | GSAP (Camera/Act Timelines) + Motion for React (UI) | 2026-10-17 | Phase 3, Phase 4 |
-| ESLint Flat Config LTS | ESLint 9 LTS + jsx-a11y | 2026-10-17 | Tooling & CI |
-| Styling Architecture | Tailwind CSS v4 Vite plugin (`@tailwindcss/vite`) | 2026-10-17 | Frontend styling |
-| Backend & State Engine | FastAPI + Python 3.11 + Deterministic State Machine | 2026-10-17 | Phase 5, Phase 6 |
-| AI & Search | Tavily Search API + NVIDIA NIM Structured Output | 2026-10-17 | Phase 6 |
+| Scoped Milestone | The Threshold (Landing Page Only) | 2026-10-17 | Implementation Phase 1 |
+| Primary Art Direction | The Obsidian Tribunal (Monolithic Sci-Fi Brutalism) | 2026-10-17 | All frontend |
+| 3D & 2D Duality | React Three Fiber with accessible 2D WebGL Fallback | 2026-10-17 | All frontend |
+| Audio Architecture | Lightweight Web Audio API procedural synthesis (user-controlled) | 2026-10-17 | Audio layer |
+| Typography Pairing | Cormorant Garamond (Display) + IBM Plex Sans (Body) + Mono | 2026-10-17 | All frontend |
 
 ## Blockers
 
-*None. Infrastructure setup complete and all checks green.*
+*None. All verification checks passing and dev server verified.*
 
 ## Concerns
 
-- Maintaining 60 FPS in 3D canvas across varied consumer hardware; mitigated by low-poly geometry, baked textures, and automatic 2D fallback.
-- Preventing AI hallucinations in evidence citations; mitigated by server-side Evidence ID verification guardrails.
-- Keeping API keys secure; mitigated by backend-only storage and routing.
+- Browser subagent encountered local Chrome DevTools Protocol port error (`failed to resolve CDP URLs`), so automated browser screenshot recording was substituted with empirical component tests and direct HTTP 200 verification.
