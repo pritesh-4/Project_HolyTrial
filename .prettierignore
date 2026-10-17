@@ -1,0 +1,21 @@
+# Build and runtime outputs
+dist
+dist-ssr
+node_modules
+.husky/_
+
+# Lockfiles and system artifacts
+package-lock.json
+*.log
+
+# Workspace agent configs, GSD framework files, and pre-existing repository documentation
+.agent
+.agents
+.gemini
+.gsd
+adapters
+docs
+scripts
+GSD-STYLE.md
+PROJECT_RULES.md
+model_capabilities.yaml
