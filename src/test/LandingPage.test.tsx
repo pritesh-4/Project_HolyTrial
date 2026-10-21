@@ -1,8 +1,14 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, afterEach } from 'vitest';
 import { render, screen, fireEvent, act } from '@testing-library/react';
 import { LandingPage } from '../components/LandingPage';
+import { getCinematicEngine, destroyCinematicEngine } from '../components/CinematicEngine';
 
 describe('LandingPage — Holy Trial Interactive Prologue', () => {
+  afterEach(() => {
+    // Keep the per-file singleton isolated between tests
+    destroyCinematicEngine();
+  });
+
   it('renders no navbar, no early CTAs, no explanatory text', () => {
     render(<LandingPage />);
 
@@ -14,7 +20,7 @@ describe('LandingPage — Holy Trial Interactive Prologue', () => {
 
     // No early CTAs
     expect(screen.queryByRole('button', { name: /ENTER THE TRIBUNAL/i })).not.toBeInTheDocument();
-    expect(screen.queryByText('EXAMINE CHARTER')).not.toBeInTheDocument();
+    expect(screen.queryByText('examine the charter')).not.toBeInTheDocument();
 
     // No explanatory paragraphs
     expect(screen.queryByText(/An adversarial court of inquiry/i)).not.toBeInTheDocument();
@@ -58,21 +64,26 @@ describe('LandingPage — Holy Trial Interactive Prologue', () => {
     expect(env).toBeInTheDocument();
   });
 
-  it('shows scroll hint after intro completes', async () => {
-    vi.useFakeTimers();
+  it('reveals ENTER THE COURT and the charter link once the timeline completes', async () => {
     render(<LandingPage />);
 
-    // Fast-forward through 8s intro
+    // Phase-gated: neither control exists before the finale
+    expect(screen.queryByRole('button', { name: /ENTER THE COURT/i })).not.toBeInTheDocument();
+    expect(screen.queryByText('examine the charter')).not.toBeInTheDocument();
+
+    // Drive the real engine — vs. waiting on the rAF loop (~7.5 s), the
+    // engine's clock is delta-based, so feeding it wholesale is honest and
+    // fast; the throttled React snapshot (≈15 fps rAF) catches up on its own.
+    const engine = getCinematicEngine();
     act(() => {
-      vi.advanceTimersByTime(8500);
+      for (let i = 0; i < 486; i++) engine.update(1 / 60);
     });
 
-    // Scroll hint (nonverbal line) should appear — we check the container exists
-    // The hint is a subtle animated line, no text
-    const nav = screen.getByRole('navigation', { name: /Story Progress/i });
-    expect(nav).toBeInTheDocument();
-
-    vi.useRealTimers();
+    const cta = await screen.findByRole('button', { name: /ENTER THE COURT/i });
+    expect(cta).toBeInTheDocument();
+    // The charter link is the single subordinate information control, and it
+    // appears only alongside the final CTA (never during the cinematic)
+    expect(await screen.findByText('examine the charter')).toBeInTheDocument();
   });
 
   it('does not show Case Dossier initially', () => {

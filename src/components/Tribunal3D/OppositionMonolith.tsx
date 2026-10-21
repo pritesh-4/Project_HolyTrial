@@ -19,9 +19,10 @@ import { windowT, easedWindow } from './etch';
 interface OppositionMonolithProps {
   progress: number;
   crossExamChoice: CrossExamChoice;
+  reducedMotion?: boolean;
 }
 
-// Master-timeline windows (elapsed s = progress × 7.5)
+// Master-timeline windows (progress fractions; wall-clock s = progress × 7.5 at act boundaries)
 const CHALLENGE_WIN = {
   approach: [0.4133, 0.53] as const, // 3.1–4.0 s
   thrust: [0.53, 0.572] as const, // fast advance
@@ -31,9 +32,13 @@ const CHALLENGE_WIN = {
   retreat: [0.7, 0.82] as const, // 5.25–6.15 s
 };
 
+// Per-frame scratch (hoisted — never allocated inside useFrame)
+const scratchTarget = new THREE.Vector3();
+
 export const OppositionMonolith: React.FC<OppositionMonolithProps> = ({
   progress,
   crossExamChoice,
+  reducedMotion = false,
 }) => {
   const groupRef = useRef<THREE.Group>(null);
   const bladeRef = useRef<THREE.Mesh>(null);
@@ -79,25 +84,28 @@ export const OppositionMonolith: React.FC<OppositionMonolithProps> = ({
     } else if (p < 0.53) {
       // Lean in — deliberate advance
       const t = easedWindow(p, CHALLENGE_WIN.approach[0], CHALLENGE_WIN.approach[1]);
-      currentTarget = new THREE.Vector3().lerpVectors(pos.dormant, pos.approach, t);
+      currentTarget = scratchTarget.lerpVectors(pos.dormant, pos.approach, t);
     } else if (p < 0.572) {
       // Thrust — short, committed
       const t = easedWindow(p, CHALLENGE_WIN.thrust[0], CHALLENGE_WIN.thrust[1]);
-      currentTarget = new THREE.Vector3().lerpVectors(pos.approach, pos.clash, t);
+      currentTarget = scratchTarget.lerpVectors(pos.approach, pos.clash, t);
     } else if (p < 0.64) {
       // Contact & recoil — the claim takes the strike, the wedge pushes off
       const t = easedWindow(p, CHALLENGE_WIN.recoil[0], CHALLENGE_WIN.recoil[1]);
-      currentTarget = new THREE.Vector3().lerpVectors(pos.clash, pos.recoil, t);
+      currentTarget = scratchTarget.lerpVectors(pos.clash, pos.recoil, t);
       contact = windowT(p, CHALLENGE_WIN.contact[0], CHALLENGE_WIN.contact[1]);
     } else if (p < 0.7) {
-      // Controlled tension — still a presence, not an exit
-      currentTarget = pos.recoil.clone();
-      currentTarget.x += Math.sin(time * 1.8) * 0.04;
-      currentTarget.y += Math.cos(time * 1.4) * 0.025;
+      // Controlled tension — still a presence, not an exit.
+      // Tension oscillation is suppressed under reduced motion.
+      currentTarget = scratchTarget.copy(pos.recoil);
+      if (!reducedMotion) {
+        currentTarget.x += Math.sin(time * 1.8) * 0.04;
+        currentTarget.y += Math.cos(time * 1.4) * 0.025;
+      }
     } else {
       // Retreat to branch-aware resolution
       const t = easedWindow(p, CHALLENGE_WIN.retreat[0], CHALLENGE_WIN.retreat[1]);
-      currentTarget = new THREE.Vector3().lerpVectors(pos.recoil, retreatTarget, t);
+      currentTarget = scratchTarget.lerpVectors(pos.recoil, retreatTarget, t);
     }
 
     groupRef.current.position.lerp(currentTarget, delta * 3.8);

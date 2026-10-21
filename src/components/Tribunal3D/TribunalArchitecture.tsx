@@ -12,7 +12,7 @@
  *  - The world beyond: a genuine spatial reveal through the opened gate
  *    (distant arch, colonnade silhouettes, warm haze).
  */
-import React, { useRef, useMemo } from 'react';
+import React, { useEffect, useRef, useMemo } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { canonicalColors, createTribunalMaterials } from './SceneMaterials';
@@ -22,7 +22,11 @@ interface TribunalArchitectureProps {
   progress: number; // 0 to 1
   isEntering?: boolean;
   gateOpen?: boolean;
+  reducedMotion?: boolean;
 }
+
+// Matrix-composition scratch for instance setup (never touched per-frame)
+const dummy = new THREE.Object3D();
 
 // Generate deterministic atmospheric motes
 function generateMotes(count: number): [Float32Array, Float32Array] {
@@ -48,6 +52,7 @@ export const TribunalArchitecture: React.FC<TribunalArchitectureProps> = ({
   progress,
   isEntering = false,
   gateOpen = false,
+  reducedMotion = false,
 }) => {
   const leftGateRef = useRef<THREE.Group>(null);
   const rightGateRef = useRef<THREE.Group>(null);
@@ -65,6 +70,63 @@ export const TribunalArchitecture: React.FC<TribunalArchitectureProps> = ({
   const streakLightRef = useRef<THREE.PointLight>(null);
 
   const [motePositions, moteScales] = useMemo(() => generateMotes(85), []);
+
+  // ── Colonnade instancing (one draw call, not 30 meshes) ───────────────
+  const mainColRef = useRef<THREE.InstancedMesh>(null);
+  const colBandRef = useRef<THREE.InstancedMesh>(null);
+  const farColRef = useRef<THREE.InstancedMesh>(null);
+
+  // Main colonnade: 10 columns (mirrored), varying heights
+  const mainColumns = useMemo(() => {
+    const cols: Array<{ x: number; z: number; h: number }> = [];
+    for (const side of [-1, 1]) {
+      for (let idx = 0; idx < 5; idx++) {
+        cols.push({
+          x: side * (4.8 + idx * 0.8),
+          z: 4 - idx * 4.5,
+          h: 12 + idx * 1.2,
+        });
+      }
+    }
+    return cols;
+  }, []);
+  const farColumns = useMemo(() => [-6.2, -5.4, 5.4, 6.2], []);
+
+  useEffect(() => {
+    // Unit-height cylinder scaled per instance; the copper band sits at a
+    // constant world height (group offsets were height-linear by design).
+    if (mainColRef.current) {
+      mainColumns.forEach((c, i) => {
+        dummy.position.set(c.x, c.h / 2 - 2.1, c.z);
+        dummy.scale.set(1, c.h, 1);
+        dummy.rotation.set(0, 0, 0);
+        dummy.updateMatrix();
+        mainColRef.current!.setMatrixAt(i, dummy.matrix);
+      });
+      mainColRef.current.instanceMatrix.needsUpdate = true;
+    }
+    if (colBandRef.current) {
+      mainColumns.forEach((c, i) => {
+        dummy.position.set(c.x, -0.9, c.z);
+        dummy.scale.set(1, 1, 1);
+        dummy.rotation.set(0, 0, 0);
+        dummy.updateMatrix();
+        colBandRef.current!.setMatrixAt(i, dummy.matrix);
+      });
+      colBandRef.current.instanceMatrix.needsUpdate = true;
+    }
+    if (farColRef.current) {
+      farColumns.forEach((x, i) => {
+        dummy.position.set(x, 3.4, -25);
+        dummy.scale.set(1, 1, 1);
+        dummy.rotation.set(0, 0, 0);
+        dummy.updateMatrix();
+        farColRef.current!.setMatrixAt(i, dummy.matrix);
+      });
+      farColRef.current.instanceMatrix.needsUpdate = true;
+      farColRef.current.computeBoundingSphere();
+    }
+  }, [mainColumns, farColumns]);
 
   // Gate seam etched flash line: vertical, at the parting seam (world z -16.85)
   const seamLine = useMemo(
@@ -103,10 +165,10 @@ export const TribunalArchitecture: React.FC<TribunalArchitectureProps> = ({
     return createTribunalMaterials();
   }, []);
 
-  useFrame((state, delta) => {
+  useFrame((_, delta) => {
     const p = progress;
-    // Mote drifting
-    if (motesRef.current) {
+    // Mote drifting (frozen under reduced motion)
+    if (motesRef.current && !reducedMotion) {
       const pos = motesRef.current.geometry.attributes.position.array as Float32Array;
       for (let i = 0; i < 85; i++) {
         pos[i * 3 + 1] += delta * 0.22;
@@ -243,7 +305,7 @@ export const TribunalArchitecture: React.FC<TribunalArchitectureProps> = ({
           : p < 0.24
             ? (p - 0.0933) * 3.9
             : p < 0.76
-              ? 0.55 + Math.sin(state.clock.getElapsedTime() * 2) * 0.12
+              ? 0.55 // steady processing light — no idle pulsing (§6)
               : p < 0.92
                 ? 0.4
                 : 0.8 + gateOpenFactor * 0.5;
@@ -331,41 +393,25 @@ export const TribunalArchitecture: React.FC<TribunalArchitectureProps> = ({
         </mesh>
       </group>
 
-      {/* Left Colonnade of Monolithic Basalt Columns */}
-      {[-4.8, -5.6, -6.4, -7.2, -8.0].map((x, idx) => {
-        const z = 4 - idx * 4.5;
-        const h = 12 + idx * 1.2;
-        return (
-          <group key={`left-col-${idx}`} position={[x, h / 2 - 2.1, z]}>
-            <mesh castShadow receiveShadow>
-              <cylinderGeometry args={[1.1, 1.3, h, 6]} />
-              <primitive object={materials.basaltRough} attach="material" />
-            </mesh>
-            <mesh position={[0, -h / 2 + 1.2, 0]}>
-              <cylinderGeometry args={[1.25, 1.27, 0.1, 6]} />
-              <primitive object={materials.oxidizedCopper} attach="material" />
-            </mesh>
-          </group>
-        );
-      })}
-
-      {/* Right Colonnade of Monolithic Basalt Columns */}
-      {[4.8, 5.6, 6.4, 7.2, 8.0].map((x, idx) => {
-        const z = 4 - idx * 4.5;
-        const h = 12 + idx * 1.2;
-        return (
-          <group key={`right-col-${idx}`} position={[x, h / 2 - 2.1, z]}>
-            <mesh castShadow receiveShadow>
-              <cylinderGeometry args={[1.1, 1.3, h, 6]} />
-              <primitive object={materials.basaltRough} attach="material" />
-            </mesh>
-            <mesh position={[0, -h / 2 + 1.2, 0]}>
-              <cylinderGeometry args={[1.25, 1.27, 0.1, 6]} />
-              <primitive object={materials.oxidizedCopper} attach="material" />
-            </mesh>
-          </group>
-        );
-      })}
+      {/* Left + Right Colonnade of Monolithic Basalt Columns (instanced) */}
+      <instancedMesh
+        ref={mainColRef}
+        args={[undefined, undefined, mainColumns.length]}
+        castShadow
+        receiveShadow
+        frustumCulled={false}
+      >
+        <cylinderGeometry args={[1.1, 1.3, 1, 6]} />
+        <primitive object={materials.basaltRough} attach="material" />
+      </instancedMesh>
+      <instancedMesh
+        ref={colBandRef}
+        args={[undefined, undefined, mainColumns.length]}
+        frustumCulled={false}
+      >
+        <cylinderGeometry args={[1.25, 1.27, 0.1, 6]} />
+        <primitive object={materials.oxidizedCopper} attach="material" />
+      </instancedMesh>
 
       {/* ── The Arbiter Wheel — central mechanism of judgment ── */}
       <group ref={wheelRef} position={[0, 2.7, -4.6]} scale={[0.001, 0.001, 0.001]}>
@@ -552,18 +598,21 @@ export const TribunalArchitecture: React.FC<TribunalArchitectureProps> = ({
             metalness={0.3}
           />
         </mesh>
-        {/* Far colonnade silhouettes */}
-        {[-6.2, -5.4, 5.4, 6.2].map((x, i) => (
-          <mesh key={`far-col-${i}`} position={[x, 3.4, -25]} castShadow={false}>
-            <cylinderGeometry args={[0.8, 0.95, 11, 6]} />
-            <meshStandardMaterial
-              color={canonicalColors.obsidian}
-              roughness={0.9}
-              metalness={0.1}
-              flatShading
-            />
-          </mesh>
-        ))}
+        {/* Far colonnade silhouettes (instanced) */}
+        <instancedMesh
+          ref={farColRef}
+          args={[undefined, undefined, farColumns.length]}
+          castShadow={false}
+          frustumCulled={false}
+        >
+          <cylinderGeometry args={[0.8, 0.95, 11, 6]} />
+          <meshStandardMaterial
+            color={canonicalColors.obsidian}
+            roughness={0.9}
+            metalness={0.1}
+            flatShading
+          />
+        </instancedMesh>
         {/* Distant floor */}
         <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -2.05, -24]}>
           <planeGeometry args={[30, 18]} />

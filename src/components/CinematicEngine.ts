@@ -82,8 +82,11 @@ export interface CinematicState {
   // Title
   titleOpacity: number;
 
-  // Audio triggers (consumed by useCinematic loop)
+  // Audio triggers (consumed by useCinematic loop) — `pendingAudioPans` runs
+  // parallel to `pendingAudioEvents` (stereo position, -1 left … +1 right; 0
+  // omitted = cue's default center).
   pendingAudioEvents: string[];
+  pendingAudioPans: number[];
 
   // Reduced motion
   reducedMotion: boolean;
@@ -148,9 +151,10 @@ function isDecisionWindowOpen(act: NarrativeAct, chosen: CrossExamChoice): boole
 const crossExamWindow = INTERACTION_WINDOWS.decision;
 
 // ── Progress Mapping (for 3D compatibility) ─────────────────────────────
-// Linear in master-timeline time so progress maps 1:1 to elapsed seconds
-// (elapsed s = progress × 7.5). Scene windows keyed below keep the story
-// beats synchronized with the camera trajectory.
+// Act boundaries are exact wall-clock fractions (elapsed s = boundary × 7.5);
+// WITHIN each act progress is smoothstepped for cinematic easing. Scene
+// windows stay monotonic across act edges and are never frame- or
+// scroll-coupled.
 const ACT_PROGRESS_RANGES: Record<NarrativeAct, [number, number]> = {
   [NarrativeAct.INITIALIZING]: [0.0, 0.0],
   [NarrativeAct.OPENING]: [0.0, 0.0933], // 0–0.7 s
@@ -198,6 +202,7 @@ function createInitialState(): CinematicState {
 
     titleOpacity: 0,
     pendingAudioEvents: [],
+    pendingAudioPans: [],
     reducedMotion: false,
     paused: false,
   };
@@ -235,13 +240,14 @@ export class CinematicEngine {
   }
 
   private notify(): void {
-    const snapshot = { ...this.state };
+    const snapshot = { ...this.state } as CinematicState;
     snapshot.evidence = {
       supporting: { ...this.state.evidence.supporting },
       contradictory: { ...this.state.evidence.contradictory },
       incomplete: { ...this.state.evidence.incomplete },
     };
     snapshot.pendingAudioEvents = [...this.state.pendingAudioEvents];
+    snapshot.pendingAudioPans = [...this.state.pendingAudioPans];
     for (const cb of this.listeners) cb(snapshot);
   }
 
@@ -260,6 +266,7 @@ export class CinematicEngine {
 
     this.state.totalElapsed += dt;
     this.state.pendingAudioEvents = [];
+    this.state.pendingAudioPans = [];
     this.state.actElapsed += dt;
 
     this.processActTransition();
@@ -273,7 +280,7 @@ export class CinematicEngine {
 
   // ── Act Transition Logic (the authoritative master clock) ───────────
   private processActTransition(): void {
-    const { act, actElapsed, reducedMotion } = this.state;
+    const { act, actElapsed } = this.state;
 
     if (act === NarrativeAct.INITIALIZING) {
       this.transitionTo(NarrativeAct.OPENING);
@@ -283,8 +290,10 @@ export class CinematicEngine {
     const duration = ACT_DURATIONS[act];
     if (duration === undefined) return; // interaction labels never hit this
 
-    // Reduced motion users get the full narrative at a calmer pace
-    const effectiveDuration = reducedMotion ? duration * 0.3 : duration;
+    // Reduced motion: the narrative keeps its full natural pacing (calmer,
+    // not sprinted); micro-motion amplitude is damped scene-side via
+    // `state.reducedMotion`.
+    const effectiveDuration = duration;
 
     if (actElapsed >= effectiveDuration) {
       const nextAct = this.getNextAct(act);
@@ -381,25 +390,35 @@ export class CinematicEngine {
   }
 
   // ── Audio Event Triggers (opt-in; consumed by useCinematic) ─────────
+  // Stereo positions approximate each cue's apparent source in the chamber:
+  // arrival streak descends on the colonnade (left), the wedge strikes from
+  // the right, the gate is centered. Object-level cues (inspection, the
+  // cross-exam shift) carry the source artifact's pan override.
+  private queueAudioEvent(event: string, pan: number): void {
+    this.state.pendingAudioEvents.push(event);
+    this.state.pendingAudioPans.push(pan);
+  }
+
   private triggerActAudio(): void {
     const { act } = this.state;
     if (act === this.lastActForAudio) return;
 
     switch (act) {
       case NarrativeAct.AWAKENING:
-        this.state.pendingAudioEvents.push('revealTexture', 'claimEstablished');
+        this.queueAudioEvent('revealTexture', -0.35); // colonnade, left
+        this.queueAudioEvent('claimEstablished', 0);
         break;
       case NarrativeAct.EVIDENCE:
-        this.state.pendingAudioEvents.push('evidenceDock');
+        this.queueAudioEvent('evidenceDock', 0.15);
         break;
       case NarrativeAct.OPPOSITION:
-        this.state.pendingAudioEvents.push('oppositionImpact');
+        this.queueAudioEvent('oppositionImpact', 0.5); // wedge enters right
         break;
       case NarrativeAct.WEIGHING:
-        this.state.pendingAudioEvents.push('resolutionResonance');
+        this.queueAudioEvent('resolutionResonance', 0);
         break;
       case NarrativeAct.REVELATION:
-        this.state.pendingAudioEvents.push('gateSwell');
+        this.queueAudioEvent('gateSwell', 0);
         break;
     }
 
@@ -415,7 +434,7 @@ export class CinematicEngine {
     this.state.isInteracting = true;
     this.state.interactionTarget = 'claim';
     this.state.claimInspected = true;
-    this.state.pendingAudioEvents.push('artifactInspect');
+    this.queueAudioEvent('artifactInspect', 0);
     this.notify();
   }
 
@@ -445,7 +464,9 @@ export class CinematicEngine {
       this.state.evidence[id].inspectOrder = this.state.nextInspectOrder++;
     }
 
-    this.state.pendingAudioEvents.push('artifactInspect');
+    // Pan follows the artifact's dock position in the chamber
+    const pan = id === 'supporting' ? -0.6 : id === 'incomplete' ? -0.5 : 0.6;
+    this.queueAudioEvent('artifactInspect', pan);
     this.notify();
   }
 
@@ -462,7 +483,7 @@ export class CinematicEngine {
    * Interaction III: Cross-examination decision.
    * Affects the physical resolution of the mechanism — never the clock.
    * The automatic sequence proceeds on schedule either way; the chosen
-   * path changes weефон the monolith retreats and how fragments settle.
+   * path changes how the monolith retreats and how fragments settle.
    */
   makeDecision(choice: 'align_support' | 'expose_contradiction'): void {
     if (this.state.crossExamChoice !== null) return;
@@ -473,7 +494,7 @@ export class CinematicEngine {
     this.state.isInteracting = true;
     this.state.interactionTarget = choice === 'align_support' ? 'supporting' : 'contradictory';
 
-    this.state.pendingAudioEvents.push('mechanismShift');
+    this.queueAudioEvent('mechanismShift', choice === 'align_support' ? -0.4 : 0.4);
 
     // Mark the chosen evidence as aligned
     if (choice === 'align_support') {
@@ -485,11 +506,25 @@ export class CinematicEngine {
     this.notify();
   }
 
+  /**
+   * Release the cross-exam camera hold (e.g. via Escape). The choice itself
+   * persists — only the camera interaction framing is released so the story
+   * trajectory can proceed before the finale naturally clears it.
+   */
+  releaseDecisionHold(): void {
+    if (this.state.crossExamChoice === null) return;
+    if (!this.state.isInteracting || this.state.activeEvidenceInspect !== null) return;
+
+    this.state.isInteracting = false;
+    this.state.interactionTarget = null;
+    this.notify();
+  }
+
   /** Enter court after completing the cinematic */
   enterCourt(): void {
     if (!this.state.ctaVisible) return;
     this.state.isEntering = true;
-    this.state.pendingAudioEvents.push('gavelChime');
+    this.queueAudioEvent('gavelChime', 0);
     this.notify();
   }
 

@@ -168,7 +168,7 @@ describe('CinematicEngine — 7.5 s master timeline (hard 8 s limit)', () => {
     expect(engine.getState().act).toBe(NarrativeAct.WEIGHING);
   });
 
-  it('reduced-motion users get a compressed but complete sequence', () => {
+  it('reduced-motion users get the full-length narrative with damped micro-motion', () => {
     // Stub matchMedia *before* engine construction so it reads `reduce`
     const stub = vi.fn().mockReturnValue({ matches: true, addEventListener: vi.fn() });
     vi.stubGlobal('matchMedia', stub);
@@ -180,14 +180,87 @@ describe('CinematicEngine — 7.5 s master timeline (hard 8 s limit)', () => {
     });
 
     try {
-      const { completedAt, ctaAt } = runCinematic(1 / 60);
+      const { engine, completedAt, ctaAt } = runCinematic(1 / 60);
       expect(ctaAt).not.toBeNull();
       expect(completedAt).not.toBeNull();
-      expect(completedAt!).toBeLessThan(4.0); // 7.5 × 0.3 ≈ 2.4 s (+1 frame)
+      // Reduced motion keeps the full natural pacing (no compression) —
+      // scenes damp micro-motion amplitude via `state.reducedMotion`.
+      expect(engine.getState().reducedMotion).toBe(true);
+      expect(ctaAt!).toBeGreaterThanOrEqual(6.9);
+      expect(ctaAt!).toBeLessThanOrEqual(HARD_LIMIT_S);
+      expect(completedAt!).toBeLessThanOrEqual(HARD_LIMIT_S);
     } finally {
       vi.unstubAllGlobals();
       delete (window as { matchMedia?: unknown }).matchMedia;
     }
+  });
+
+  it('keeps audio pans paired with audio events of equal length', () => {
+    const engine = new CinematicEngine();
+    engine.start();
+    // Crossing into every audio-bearing act emits a paired (event, pan) cue
+    for (let i = 0; i < Math.round(8 / (1 / 60)); i++) engine.update(1 / 60);
+    const final = engine.getState();
+    const emitted = final.act === NarrativeAct.COMPLETED || final.totalElapsed >= 7.4;
+    expect(emitted).toBe(true);
+
+    // Object-level cues also pair: inspect the dissent shard (pan +0.6)
+    engine.update(1 / 60);
+    engine.inspectEvidence('contradictory');
+    const s = engine.getState();
+    expect(s.pendingAudioEvents).toContain('artifactInspect');
+    expect(s.pendingAudioPans).toHaveLength(s.pendingAudioEvents.length);
+    const idx = s.pendingAudioEvents.indexOf('artifactInspect');
+    expect(s.pendingAudioPans[idx]).toBeCloseTo(0.6, 5);
+  });
+
+  it('releaseDecisionHold() releases the cross-exam camera hold, not the choice', () => {
+    const engine = new CinematicEngine();
+    engine.start();
+    for (let i = 0; i < Math.round(4.4 / (1 / 60)); i++) engine.update(1 / 60);
+    engine.makeDecision('expose_contradiction');
+    let s = engine.getState();
+    expect(s.crossExamChoice).toBe('expose_contradiction');
+    expect(s.isInteracting).toBe(true);
+    expect(s.interactionTarget).toBe('contradictory');
+
+    // Guard: held while an evidence-inspect frame is still active
+    engine.inspectEvidence('contradictory');
+    engine.releaseDecisionHold();
+    s = engine.getState();
+    expect(s.isInteracting).toBe(true);
+    expect(s.interactionTarget).toBe('contradictory');
+
+    // Once the inspect frame is finished, finishEvidenceInspect clears the
+    // hold (Escape covers a *bare* decision hold — see the next test)
+    engine.finishEvidenceInspect();
+    expect(engine.getState().activeEvidenceInspect).toBeNull();
+
+    // Guard: nothing to release when no hold is active (double-release safety)
+    engine.releaseDecisionHold();
+    s = engine.getState();
+    expect(s.isInteracting).toBe(false);
+    expect(s.interactionTarget).toBeNull();
+    expect(s.crossExamChoice).toBe('expose_contradiction');
+  });
+
+  it('releaseDecisionHold() clears a bare decision hold directly', () => {
+    const engine = new CinematicEngine();
+    engine.start();
+    for (let i = 0; i < Math.round(4.4 / (1 / 60)); i++) engine.update(1 / 60);
+    engine.makeDecision('align_support');
+
+    const s = engine.getState();
+    expect(s.isInteracting).toBe(true);
+    expect(s.activeEvidenceInspect).toBeNull();
+
+    engine.releaseDecisionHold();
+    const after = engine.getState();
+    expect(after.isInteracting).toBe(false);
+    expect(after.interactionTarget).toBeNull();
+    // The choice itself persists
+    expect(after.crossExamChoice).toBe('align_support');
+    expect(after.evidence.supporting.aligned).toBe(true);
   });
 
   it('passes through every story beat in order without skips', () => {

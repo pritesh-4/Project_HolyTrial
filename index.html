@@ -15,7 +15,46 @@
   <body
     class="bg-[#090909] text-[#E8E0D1] antialiased selection:bg-[#B76548]/30 selection:text-[#E8E0D1]"
   >
-    <div id="root"></div>
+    <div id="root">
+      <!-- Loading veil: replaced wholesale when React mounts. Static, palette-
+           correct — no blank flash, no idle glow. -->
+      <div
+        id="loading-veil"
+        style="
+          position: fixed;
+          inset: 0;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          background: #090909;
+          z-index: 9999;
+        "
+      >
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 1rem">
+          <div
+            style="
+              width: 2px;
+              height: 64px;
+              background: linear-gradient(
+                to bottom,
+                rgba(232, 224, 209, 0.25),
+                rgba(183, 101, 72, 0.45)
+              );
+            "
+          ></div>
+          <span
+            style="
+              font-family: 'IBM Plex Mono', monospace;
+              font-size: 0.7rem;
+              letter-spacing: 0.4em;
+              color: rgba(156, 148, 138, 0.6);
+              text-transform: uppercase;
+            "
+            >HOLY TRIAL</span
+          >
+        </div>
+      </div>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

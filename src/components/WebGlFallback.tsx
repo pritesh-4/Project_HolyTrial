@@ -38,8 +38,8 @@ export const WebGlFallback: React.FC<WebGlFallbackProps> = ({
 
       {/* Central Volumetric Light Beam */}
       <div
-        className={`absolute top-0 left-1/2 h-full w-80 origin-top -translate-x-1/2 transform bg-gradient-to-b from-[#E8E0D1]/20 via-[#B76548]/10 to-transparent blur-3xl transition-transform duration-1000 md:w-[480px] ${
-          isEntering ? 'scale-125 opacity-80' : 'animate-shaft-drift'
+        className={`absolute top-0 left-1/2 h-full w-80 origin-top -translate-x-1/2 transform bg-gradient-to-b from-[#E8E0D1]/20 via-[#B76548]/10 to-transparent blur-3xl md:w-[480px] ${
+          isEntering ? 'scale-125 opacity-80' : ''
         }`}
       />
 
@@ -258,14 +258,7 @@ export const WebGlFallback: React.FC<WebGlFallbackProps> = ({
         {/* The Claim Relic: Faceted Obsidian & Glowing Ember */}
         <g transform="translate(720, 530)">
           {/* Singularity Glow */}
-          <circle
-            cx="0"
-            cy="0"
-            r="30"
-            fill="#F2A16A"
-            opacity="0.35"
-            className="animate-ember-pulse"
-          />
+          <circle cx="0" cy="0" r="30" fill="#F2A16A" opacity="0.35" />
           <circle cx="0" cy="0" r="10" fill="#F2A16A" />
           {/* Faceted Obsidian Core */}
           <polygon

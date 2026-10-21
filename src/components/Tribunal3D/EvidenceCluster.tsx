@@ -29,6 +29,7 @@ interface EvidenceClusterProps {
   activeInspect: EvidenceId | null;
   crossExamChoice: CrossExamChoice;
   decisionWindowActive: boolean;
+  reducedMotion?: boolean;
   onEvidenceClick: (id: EvidenceId) => void;
   onEvidenceInspectEnd: () => void;
   onDecision: (choice: 'align_support' | 'expose_contradiction') => void;
@@ -64,6 +65,9 @@ const WIN = {
   settle: [0.68, 0.8] as const, // veiled record recedes on settling
 };
 
+// Per-frame scratch (hoisted — never allocated inside useFrame)
+const scratchTarget = new THREE.Vector3();
+
 export const EvidenceCluster: React.FC<EvidenceClusterProps> = ({
   progress,
   act,
@@ -71,6 +75,7 @@ export const EvidenceCluster: React.FC<EvidenceClusterProps> = ({
   activeInspect,
   crossExamChoice,
   decisionWindowActive,
+  reducedMotion = false,
   onEvidenceClick,
   onEvidenceInspectEnd,
   onDecision,
@@ -181,13 +186,14 @@ export const EvidenceCluster: React.FC<EvidenceClusterProps> = ({
     relations.veiledGhost.setReveal(ghostT);
     relations.veiledGhost.setOpacity(activeInspect === 'incomplete' ? 0.8 : 0.3 * ghostT);
 
-    // ── Idle micro-motion (restrained, no competing choreography) ────
-    const idleY = Math.sin(time * 1.6) * 0.03;
-    const idleRot = Math.cos(time * 1.1) * 0.02;
+    // ── Idle micro-motion (restrained, no competing choreography; frozen
+    // under reduced motion) ────────────────────────────────────────────
+    const idleY = reducedMotion ? 0 : Math.sin(time * 1.6) * 0.03;
+    const idleRot = reducedMotion ? 0 : Math.cos(time * 1.1) * 0.02;
 
     // ── THE CORROBORANT — struts fly in and lock into the frame ──────
     if (strutLRef.current) {
-      const target = new THREE.Vector3().lerpVectors(DISPERSED.strutL, DOCK.strutL, t);
+      const target = scratchTarget.lerpVectors(DISPERSED.strutL, DOCK.strutL, t);
       target.y += idleY;
       strutLRef.current.position.lerp(target, delta * 3.4);
       strutLRef.current.rotation.z = THREE.MathUtils.damp(
@@ -211,7 +217,7 @@ export const EvidenceCluster: React.FC<EvidenceClusterProps> = ({
       }
     }
     if (strutRRef.current) {
-      const target = new THREE.Vector3().lerpVectors(DISPERSED.strutR, DOCK.strutR, t);
+      const target = scratchTarget.lerpVectors(DISPERSED.strutR, DOCK.strutR, t);
       target.y += idleY * 0.9;
       strutRRef.current.position.lerp(target, delta * 3.4);
       strutRRef.current.rotation.z = THREE.MathUtils.damp(
@@ -240,15 +246,15 @@ export const EvidenceCluster: React.FC<EvidenceClusterProps> = ({
       let target: THREE.Vector3;
       if (crossExamChoice === 'expose_contradiction') {
         // Chosen: move into the central mechanism (physical response)
-        target = CENTER_MECHANISM.clone();
+        target = scratchTarget.copy(CENTER_MECHANISM);
       } else if (activeInspect === 'contradictory') {
-        target = INSPECT_OFFSET.contradictory.clone();
+        target = scratchTarget.copy(INSPECT_OFFSET.contradictory);
         inspectRotRef.current.contradictory += delta * 1.6;
         dissentRef.current.rotation.y = inspectRotRef.current.contradictory;
       } else {
-        target = new THREE.Vector3().lerpVectors(DISPERSED.dissent, DOCK.dissent, t);
+        target = scratchTarget.lerpVectors(DISPERSED.dissent, DOCK.dissent, t);
         // Stress during the challenge (mapped, brief)
-        if (p >= WIN.stress[0] && p < WIN.stress[1]) {
+        if (p >= WIN.stress[0] && p < WIN.stress[1] && !reducedMotion) {
           const stressT = (p - WIN.stress[0]) / (WIN.stress[1] - WIN.stress[0]);
           const vibration = Math.sin(time * 24) * 0.03 * Math.sin(stressT * Math.PI);
           target.x += vibration;
@@ -283,19 +289,15 @@ export const EvidenceCluster: React.FC<EvidenceClusterProps> = ({
     if (veiledRef.current) {
       let target: THREE.Vector3;
       if (activeInspect === 'incomplete') {
-        target = INSPECT_OFFSET.incomplete.clone();
+        target = scratchTarget.copy(INSPECT_OFFSET.incomplete);
         inspectRotRef.current.incomplete += delta * 1.1;
         veiledRef.current.rotation.y = inspectRotRef.current.incomplete;
       } else {
         const settled = easedWindow(p, WIN.settle[0], WIN.settle[1]);
-        target = new THREE.Vector3().lerpVectors(
-          DISPERSED.veiled,
-          DOCK.veiled,
-          t * (1 - settled * 0.55)
-        );
+        target = scratchTarget.lerpVectors(DISPERSED.veiled, DOCK.veiled, t * (1 - settled * 0.55));
         target.y += settled * 0.5 + idleRot * 0.4; // recedes and dims away
       }
-      target.y += Math.sin(time * 1.25) * 0.045;
+      target.y += reducedMotion ? 0 : Math.sin(time * 1.25) * 0.045;
       veiledRef.current.position.lerp(target, delta * 2.8);
       if (veiledMatRef.current) {
         const resolved = easedWindow(p, WIN.settle[0], WIN.settle[1]);

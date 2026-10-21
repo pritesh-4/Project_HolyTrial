@@ -33,6 +33,7 @@ interface ClaimRelicProps {
   claimInspected: boolean;
   claimHovered: boolean;
   act: NarrativeAct;
+  reducedMotion?: boolean;
   onHoverChange?: (hovered: boolean) => void;
   onClick?: () => void;
   onInspectEnd?: () => void;
@@ -56,6 +57,7 @@ export const ClaimRelic: React.FC<ClaimRelicProps> = ({
   claimInspected,
   claimHovered,
   act,
+  reducedMotion = false,
   onHoverChange,
   onClick,
   onInspectEnd,
@@ -190,7 +192,8 @@ export const ClaimRelic: React.FC<ClaimRelicProps> = ({
     }
 
     // ── Position & scale: awakening rise → settle → ascent ──────────
-    const breath = Math.sin(time * 1.1) * 0.015;
+    // Reduced motion: no idle breathing, no impact vibration, no micro-sway
+    const breath = reducedMotion ? 0 : Math.sin(time * 1.1) * 0.015;
     let targetScale = 0.001;
     let targetY = -1.35;
 
@@ -207,7 +210,9 @@ export const ClaimRelic: React.FC<ClaimRelicProps> = ({
     // Impact vibration (windows-driven, brief)
     if (p >= WIN.impact[0] && p < WIN.impact[1]) {
       const stressT = (p - WIN.impact[0]) / (WIN.impact[1] - WIN.impact[0]);
-      const vibration = Math.sin(time * 34) * 0.035 * Math.sin(stressT * Math.PI);
+      const vibration = reducedMotion
+        ? 0
+        : Math.sin(time * 34) * 0.035 * Math.sin(stressT * Math.PI);
       targetY += vibration;
     }
 
@@ -225,7 +230,7 @@ export const ClaimRelic: React.FC<ClaimRelicProps> = ({
         }
       } else {
         // Story tilt: lean during evidence/conflict, right itself on settle
-        const leanT = easedWindow(p, 0.24, 0.6133);
+        const leanT = easedWindow(p, 0.24, 0.6);
         coreRef.current.rotation.y = THREE.MathUtils.damp(
           coreRef.current.rotation.y,
           leanT * 0.35 * (1 - settleT * 0.9),
@@ -233,7 +238,7 @@ export const ClaimRelic: React.FC<ClaimRelicProps> = ({
           delta
         );
       }
-      coreRef.current.rotation.z = Math.sin(time * 0.6) * 0.008 * (1 - settleT);
+      coreRef.current.rotation.z = reducedMotion ? 0 : Math.sin(time * 0.6) * 0.008 * (1 - settleT);
     }
 
     // Revelation onward: gentle rise into the final composition

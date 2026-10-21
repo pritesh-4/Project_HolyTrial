@@ -63,13 +63,18 @@ const CAMERA_TRAJECTORY: TrajectoryKey[] = [
   { p: 1.0, pos: new THREE.Vector3(0, 0.9, -0.2), look: new THREE.Vector3(0, 1.2, -18) },
 ];
 
+// Per-frame scratch (hoisted — never allocated inside useFrame)
+const scratchPos = new THREE.Vector3();
+const scratchLook = new THREE.Vector3();
+
 // ── Camera Rig ──────────────────────────────────────────────────────────
 function CinematicCameraRig({ cinematicState }: { cinematicState: CinematicState }) {
   const impactRumbleRef = useRef(0);
   const breathRef = useRef(0);
 
   useFrame((state, delta) => {
-    const { progress, isEntering, isInteracting, interactionTarget } = cinematicState;
+    const { progress, isEntering, isInteracting, interactionTarget, reducedMotion } =
+      cinematicState;
     const cp = Math.max(0, Math.min(1, progress));
 
     // ── Find trajectory segment ──────────────────────────────────────
@@ -88,8 +93,8 @@ function CinematicCameraRig({ cinematicState }: { cinematicState: CinematicState
     const t = span > 0 ? (cp - seg0.p) / span : 0;
     const s = t * t * (3 - 2 * t); // smooth-step
 
-    const targetPos = new THREE.Vector3().lerpVectors(seg0.pos, seg1.pos, s);
-    const targetLook = new THREE.Vector3().lerpVectors(seg0.look, seg1.look, s);
+    const targetPos = scratchPos.lerpVectors(seg0.pos, seg1.pos, s);
+    const targetLook = scratchLook.lerpVectors(seg0.look, seg1.look, s);
 
     // ── Interaction camera adjustments ────────────────────────────────
     if (isInteracting && interactionTarget) {
@@ -117,15 +122,15 @@ function CinematicCameraRig({ cinematicState }: { cinematicState: CinematicState
       }
     }
 
-    // ── Subtle camera breathing ───────────────────────────────────────
+    // ── Subtle camera breathing (skipped under reduced motion) ────────
     breathRef.current += delta;
-    const breathX = Math.sin(breathRef.current * 0.3) * 0.03;
-    const breathY = Math.cos(breathRef.current * 0.22) * 0.02;
+    const breathX = reducedMotion ? 0 : Math.sin(breathRef.current * 0.3) * 0.03;
+    const breathY = reducedMotion ? 0 : Math.cos(breathRef.current * 0.22) * 0.02;
 
-    // ── Pointer parallax ─────────────────────────────────────────────
+    // ── Pointer parallax (skipped under reduced motion) ──────────────
     const isMobile = state.size.width < 768;
-    const pxFactor = isMobile ? 0.06 : 0.18;
-    const pyFactor = isMobile ? 0.03 : 0.08;
+    const pxFactor = reducedMotion ? 0 : isMobile ? 0.06 : 0.18;
+    const pyFactor = reducedMotion ? 0 : isMobile ? 0.03 : 0.08;
     const mx = state.pointer.x * pxFactor;
     const my = state.pointer.y * pyFactor;
 
@@ -133,7 +138,7 @@ function CinematicCameraRig({ cinematicState }: { cinematicState: CinematicState
     // Contact window: 4.24–4.61 s on the master timeline (progress 0.53–0.615)
     let sx = 0,
       sy = 0;
-    const isClash = cp >= 0.53 && cp <= 0.615;
+    const isClash = !reducedMotion && cp >= 0.53 && cp <= 0.615;
     if (isClash) {
       impactRumbleRef.current = THREE.MathUtils.damp(impactRumbleRef.current, 0.04, 10, delta);
       sx = Math.sin(state.clock.elapsedTime * 55) * 0.5 * impactRumbleRef.current;
@@ -345,6 +350,7 @@ export const TribunalCanvas: React.FC<TribunalCanvasProps> = ({
           progress={cinematicState.progress}
           isEntering={cinematicState.isEntering}
           gateOpen={cinematicState.gateOpen}
+          reducedMotion={cinematicState.reducedMotion}
         />
         <ClaimRelic
           progress={cinematicState.progress}
@@ -352,6 +358,7 @@ export const TribunalCanvas: React.FC<TribunalCanvasProps> = ({
           claimInspected={cinematicState.claimInspected}
           claimHovered={cinematicState.claimHovered}
           act={cinematicState.act}
+          reducedMotion={cinematicState.reducedMotion}
           onHoverChange={onClaimHover}
           onClick={onClaimClick}
           onInspectEnd={onClaimInspectEnd}
@@ -363,6 +370,7 @@ export const TribunalCanvas: React.FC<TribunalCanvasProps> = ({
           activeInspect={cinematicState.activeEvidenceInspect}
           crossExamChoice={cinematicState.crossExamChoice}
           decisionWindowActive={cinematicState.decisionWindowActive}
+          reducedMotion={cinematicState.reducedMotion}
           onEvidenceClick={onEvidenceClick}
           onEvidenceInspectEnd={onEvidenceInspectEnd}
           onDecision={onDecision}
@@ -370,6 +378,7 @@ export const TribunalCanvas: React.FC<TribunalCanvasProps> = ({
         <OppositionMonolith
           progress={cinematicState.progress}
           crossExamChoice={cinematicState.crossExamChoice}
+          reducedMotion={cinematicState.reducedMotion}
         />
 
         {/* Camera */}

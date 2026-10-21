@@ -43,11 +43,13 @@ export function useCinematic() {
       // Process audio events immediately (they're cleared each frame)
       const currentState = engine.getState();
       if (currentState.pendingAudioEvents.length > 0) {
-        for (const event of currentState.pendingAudioEvents) {
+        const pans = currentState.pendingAudioPans;
+        for (let i = 0; i < currentState.pendingAudioEvents.length; i++) {
+          const event = currentState.pendingAudioEvents[i];
           const key = `${event}-${currentState.act}`;
           if (audioProcessedRef.current.has(key)) continue;
           audioProcessedRef.current.add(key);
-          playAudioEvent(event);
+          playAudioEvent(event, pans[i]);
         }
       }
 
@@ -95,6 +97,7 @@ export function useCinematic() {
   useEffect(() => {
     return () => {
       destroyCinematicEngine();
+      obsidianAudio.dispose();
     };
   }, []);
 
@@ -129,6 +132,11 @@ export function useCinematic() {
     setReactState(engine.getState());
   }, [engine]);
 
+  const releaseDecisionHold = useCallback(() => {
+    engine.releaseDecisionHold();
+    setReactState(engine.getState());
+  }, [engine]);
+
   const makeDecision = useCallback(
     (choice: 'align_support' | 'expose_contradiction') => {
       engine.makeDecision(choice);
@@ -156,6 +164,7 @@ export function useCinematic() {
     hoverClaim,
     inspectEvidence,
     finishEvidenceInspect,
+    releaseDecisionHold,
     makeDecision,
     enterCourt,
     toggleAudio,
@@ -174,19 +183,21 @@ export function useCinematic() {
 }
 
 // ── Audio Dispatcher ──────────────────────────────────────────────────
-function playAudioEvent(event: string): void {
+// Pan is the engine-estimated stereo position of the cue's apparent source
+// (-1 left … +1 right); undefined falls back to the cue's default.
+function playAudioEvent(event: string, pan?: number): void {
   switch (event) {
     case 'revealTexture':
-      obsidianAudio.playRevealTexture();
+      obsidianAudio.playRevealTexture(pan);
       break;
     case 'claimEstablished':
       obsidianAudio.playClaimEstablished();
       break;
     case 'evidenceDock':
-      obsidianAudio.playEvidenceDock();
+      obsidianAudio.playEvidenceDock(pan);
       break;
     case 'oppositionImpact':
-      obsidianAudio.playOppositionImpact();
+      obsidianAudio.playOppositionImpact(pan);
       break;
     case 'resolutionResonance':
       obsidianAudio.playResolutionResonance();
@@ -198,10 +209,10 @@ function playAudioEvent(event: string): void {
       obsidianAudio.playGavelChime();
       break;
     case 'artifactInspect':
-      obsidianAudio.playArtifactInspect();
+      obsidianAudio.playArtifactInspect(pan);
       break;
     case 'mechanismShift':
-      obsidianAudio.playMechanismShift();
+      obsidianAudio.playMechanismShift(pan);
       break;
   }
 }

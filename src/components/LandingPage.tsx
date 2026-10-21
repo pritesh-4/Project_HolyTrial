@@ -26,11 +26,13 @@ export const LandingPage: React.FC = () => {
   // ── Cinematic Engine ────────────────────────────────────────────────
   const {
     state: cinematicState,
+    engine,
     inspectClaim,
     finishClaimInspect,
     hoverClaim,
     inspectEvidence,
     finishEvidenceInspect,
+    releaseDecisionHold,
     makeDecision,
     enterCourt,
     toggleAudio,
@@ -40,21 +42,42 @@ export const LandingPage: React.FC = () => {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       // Tab / Enter / Space for interaction with focused elements is
-      // handled natively. We only handle specific cinematic shortcuts.
-      if (e.key === '1' || e.key === 'q') {
-        inspectEvidence('supporting');
+      // handled natively. Cinematic shortcuts:
+      //  c — inspect the claim
+      //  1/q — corroborant (or, while the cross-exam window is open, choose it)
+      //  2/w — dissent shard (same decision-window promotion)
+      //  3/e — veiled record
+      //  Escape — release whichever interaction hold is active
+      const s = engine.getState();
+      const decisionReady = s.decisionWindowActive && s.crossExamChoice === null;
+
+      if (e.key === 'c') {
+        inspectClaim();
+      } else if (e.key === '1' || e.key === 'q') {
+        if (decisionReady) makeDecision('align_support');
+        else inspectEvidence('supporting');
       } else if (e.key === '2' || e.key === 'w') {
-        inspectEvidence('contradictory');
+        if (decisionReady) makeDecision('expose_contradiction');
+        else inspectEvidence('contradictory');
       } else if (e.key === '3' || e.key === 'e') {
         inspectEvidence('incomplete');
       } else if (e.key === 'Escape') {
         finishClaimInspect();
         finishEvidenceInspect();
+        releaseDecisionHold();
       }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [inspectEvidence, finishClaimInspect, finishEvidenceInspect]);
+  }, [
+    engine,
+    inspectClaim,
+    inspectEvidence,
+    makeDecision,
+    finishClaimInspect,
+    finishEvidenceInspect,
+    releaseDecisionHold,
+  ]);
 
   // ── Enter Court Transition ──────────────────────────────────────────
   const handleEnterCourt = useCallback(() => {
@@ -168,7 +191,7 @@ export const LandingPage: React.FC = () => {
                       type="button"
                       onClick={handleEnterCourt}
                       disabled={cinematicState.isEntering}
-                      className="animate-gate-pulse group relative cursor-pointer border border-[#B76548]/50 bg-[#090909]/60 px-10 py-4 font-mono text-sm font-medium tracking-[0.25em] text-[#E8E0D1] backdrop-blur-sm transition-all duration-500 hover:border-[#B76548] hover:bg-[#151413]/80 hover:shadow-[0_0_50px_rgba(183,101,72,0.35)] focus:ring-1 focus:ring-[#B76548]/40 focus:outline-none"
+                      className="group relative cursor-pointer border border-[#B76548]/50 bg-[#090909]/60 px-10 py-4 font-mono text-sm font-medium tracking-[0.25em] text-[#E8E0D1] backdrop-blur-sm transition-all duration-500 hover:border-[#B76548] hover:bg-[#151413]/80 hover:shadow-[0_0_50px_rgba(183,101,72,0.35)] focus:ring-1 focus:ring-[#B76548]/40 focus:outline-none"
                     >
                       <div className="absolute -top-px -left-px h-2 w-2 border-t border-l border-[#B76548]/60" />
                       <div className="absolute -top-px -right-px h-2 w-2 border-t border-r border-[#B76548]/60" />

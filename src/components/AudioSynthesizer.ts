@@ -9,17 +9,48 @@ class ObsidianAudioEngine {
   private ambientOsc3: OscillatorNode | null = null;
   private isMuted: boolean = true;
   private lastTriggerTimes: Record<string, number> = {};
+  private stopAmbientTimeout: ReturnType<typeof setTimeout> | null = null;
+  private visibilityListener: (() => void) | null = null;
 
   constructor() {
     if (typeof window !== 'undefined') {
-      document.addEventListener('visibilitychange', () => {
+      this.visibilityListener = () => {
         if (document.hidden) {
           this.pause();
         } else if (!this.isMuted) {
           this.resume();
         }
-      });
+      };
+      document.addEventListener('visibilitychange', this.visibilityListener);
     }
+  }
+
+  /** Full teardown — removes listeners, pending timers, and closes the ctx. */
+  public dispose(): void {
+    if (this.stopAmbientTimeout !== null) {
+      clearTimeout(this.stopAmbientTimeout);
+      this.stopAmbientTimeout = null;
+    }
+    if (this.visibilityListener) {
+      document.removeEventListener('visibilitychange', this.visibilityListener);
+      this.visibilityListener = null;
+    }
+    this.isMuted = true;
+    try {
+      this.ambientOsc1?.stop();
+      this.ambientOsc2?.stop();
+      this.ambientOsc3?.stop();
+    } catch {
+      // Nodes may never have started
+    }
+    this.ambientOsc1 = null;
+    this.ambientOsc2 = null;
+    this.ambientOsc3 = null;
+    this.ambientGain = null;
+    if (this.ctx && this.ctx.state !== 'closed') {
+      this.ctx.close().catch(() => {});
+    }
+    this.ctx = null;
   }
 
   private initContext(): boolean {
@@ -37,6 +68,24 @@ class ObsidianAudioEngine {
       return Boolean(this.ctx);
     } catch {
       return false;
+    }
+  }
+
+  /**
+   * Route a cue through a StereoPannerNode so it emerges from its apparent
+   * source (§10). Gracefully degrades to direct output when the API is absent
+   * (Safari <14.1, older WebKit) or pan is nominally 0.
+   */
+  private connectPanned(node: AudioNode, pan?: number): void {
+    if (!this.ctx) return;
+    const p = pan ?? 0;
+    if (p !== 0 && typeof this.ctx.createStereoPanner === 'function') {
+      const panner = this.ctx.createStereoPanner();
+      panner.pan.setValueAtTime(Math.max(-1, Math.min(1, p)), this.ctx.currentTime);
+      node.connect(panner);
+      panner.connect(this.ctx.destination);
+    } else {
+      node.connect(this.ctx.destination);
     }
   }
 
@@ -127,7 +176,7 @@ class ObsidianAudioEngine {
         const now = this.ctx.currentTime;
         this.ambientGain.gain.setValueAtTime(this.ambientGain.gain.value, now);
         this.ambientGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.6);
-        setTimeout(() => {
+        this.stopAmbientTimeout = setTimeout(() => {
           try {
             this.ambientOsc1?.stop();
             this.ambientOsc2?.stop();
@@ -151,7 +200,7 @@ class ObsidianAudioEngine {
   }
 
   // Soft metallic/stone texture during the opening sequence revelation
-  public playRevealTexture() {
+  public playRevealTexture(pan?: number) {
     if (this.isMuted || !this.canTrigger('reveal', 3000)) return;
     this.initContext();
     if (!this.ctx) return;
@@ -175,7 +224,7 @@ class ObsidianAudioEngine {
 
       osc.connect(filter);
       filter.connect(gain);
-      gain.connect(this.ctx.destination);
+      this.connectPanned(gain, pan ?? -0.35);
 
       osc.start(now);
       osc.stop(now + 3.4);
@@ -213,14 +262,14 @@ class ObsidianAudioEngine {
       });
 
       filter.connect(masterGain);
-      masterGain.connect(this.ctx.destination);
+      this.connectPanned(masterGain, 0);
     } catch {
       // Audio fallback
     }
   }
 
   // Subtle mineral chime when evidence fragments dock (Chapter II)
-  public playEvidenceDock() {
+  public playEvidenceDock(pan?: number) {
     if (this.isMuted || !this.canTrigger('evidence', 1800)) return;
     this.initContext();
     if (!this.ctx) return;
@@ -243,7 +292,7 @@ class ObsidianAudioEngine {
 
       osc.connect(filter);
       filter.connect(gain);
-      gain.connect(this.ctx.destination);
+      this.connectPanned(gain, pan ?? 0.15);
 
       osc.start(now);
       osc.stop(now + 1.9);
@@ -253,7 +302,7 @@ class ObsidianAudioEngine {
   }
 
   // Low, controlled impact when opposing force arrives (Chapter III)
-  public playOppositionImpact() {
+  public playOppositionImpact(pan?: number) {
     if (this.isMuted || !this.canTrigger('opposition', 2500)) return;
     this.initContext();
     if (!this.ctx) return;
@@ -290,7 +339,7 @@ class ObsidianAudioEngine {
       clashGain.connect(filter);
 
       filter.connect(impactGain);
-      impactGain.connect(this.ctx.destination);
+      this.connectPanned(impactGain, pan ?? 0.5);
 
       oscSub.start(now);
       oscClash.start(now);
@@ -331,7 +380,7 @@ class ObsidianAudioEngine {
       });
 
       filter.connect(gain);
-      gain.connect(this.ctx.destination);
+      this.connectPanned(gain, 0);
     } catch {
       // Audio fallback
     }
@@ -368,7 +417,7 @@ class ObsidianAudioEngine {
       osc.connect(filter);
       oscHarmonic.connect(filter);
       filter.connect(swellGain);
-      swellGain.connect(this.ctx.destination);
+      this.connectPanned(swellGain, 0);
 
       osc.start(now);
       oscHarmonic.start(now);
@@ -409,14 +458,14 @@ class ObsidianAudioEngine {
       });
 
       filter.connect(strikeGain);
-      strikeGain.connect(this.ctx.destination);
+      this.connectPanned(strikeGain, 0);
     } catch {
       // Audio fallback
     }
   }
 
   // Gentle acoustic cue when user selects or manipulates an artifact
-  public playArtifactInspect() {
+  public playArtifactInspect(pan?: number) {
     if (this.isMuted || !this.canTrigger('inspect', 600)) return;
     this.initContext();
     if (!this.ctx) return;
@@ -440,7 +489,7 @@ class ObsidianAudioEngine {
 
       osc.connect(filter);
       filter.connect(gain);
-      gain.connect(this.ctx.destination);
+      this.connectPanned(gain, pan ?? 0);
 
       osc.start(now);
       osc.stop(now + 0.9);
@@ -450,7 +499,7 @@ class ObsidianAudioEngine {
   }
 
   // Subterranean stone resonance when the player intervenes in cross-examination
-  public playMechanismShift() {
+  public playMechanismShift(pan?: number) {
     if (this.isMuted || !this.canTrigger('mechShift', 900)) return;
     this.initContext();
     if (!this.ctx) return;
@@ -473,7 +522,7 @@ class ObsidianAudioEngine {
 
       osc.connect(filter);
       filter.connect(gain);
-      gain.connect(this.ctx.destination);
+      this.connectPanned(gain, pan ?? 0);
 
       osc.start(now);
       osc.stop(now + 1.9);

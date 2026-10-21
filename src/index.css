@@ -57,52 +57,8 @@ body {
   font-family: var(--font-mono);
 }
 
-/* Atmospheric animations */
-@keyframes emberPulse {
-  0%,
-  100% {
-    opacity: 0.55;
-    filter: drop-shadow(0 0 6px rgba(242, 161, 106, 0.35));
-  }
-  50% {
-    opacity: 1;
-    filter: drop-shadow(0 0 16px rgba(242, 161, 106, 0.8));
-  }
-}
-
-@keyframes lightShaftDrift {
-  0%,
-  100% {
-    opacity: 0.2;
-    transform: rotate(-0.5deg) scaleX(1);
-  }
-  50% {
-    opacity: 0.38;
-    transform: rotate(0.8deg) scaleX(1.05);
-  }
-}
-
-@keyframes gatePulse {
-  0%,
-  100% {
-    box-shadow: 0 0 30px rgba(183, 101, 72, 0.15);
-  }
-  50% {
-    box-shadow: 0 0 55px rgba(183, 101, 72, 0.35);
-  }
-}
-
-.animate-ember-pulse {
-  animation: emberPulse 3.5s ease-in-out infinite;
-}
-
-.animate-shaft-drift {
-  animation: lightShaftDrift 12s ease-in-out infinite;
-}
-
-.animate-gate-pulse {
-  animation: gatePulse 4s ease-in-out infinite;
-}
+/* No looping atmospheric animations — color and motion identify story
+   moments only; the world does not idle-glow (§6 discipline). */
 
 /* Hide scrollbar for immersive experience */
 .scrollbar-hidden {
