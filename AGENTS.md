@@ -25,6 +25,12 @@ Standing scope limit (set 2026-10-17): do **not** implement Tavily Search, NVIDI
 - The 3D view (`src/components/Tribunal3D/`) has a full 2D text fallback (`WebGlFallback`, chosen by WebGL availability in `LandingPage.tsx`) and `prefers-reduced-motion` handling in **both** `CinematicEngine.ts` and `index.css`. When touching views or animations, keep the fallback and reduced-motion branches working — it's a spec success criterion.
 - Prettier and ESLint both run post-commit (`husky` → `lint-staged`: eslint --fix then prettier on staged files).
 
+## Secondary review (2026-10-21, commit `4e58043`)
+
+- `secondary_review.md` (root) is the secondary agent's coordination ledger: browser-verified findings (mid-film keyboard modals → fixed via engine `inspectObject` gate; reduced-motion rain → fixed; stale veil palette → fixed; focus-visible a11y → fixed), uncommitted-vs-committed attribution, and open items (re-verify finale desk/CTA collision under the new timeline; consider `role="dialog"`/`autoFocus` in modals; staged plate loader; `WebGlFallback`/`Tribunal3D` dead code).
+- ⚠️ Critical flag: the master timeline was rewritten to ~21 s (tests describe "18–24 s") — the approved spec said 7–8 s autoplay. Needs explicit human sign-off; re-run full browser probes after it settles.
+- Next session: read `AGENTS.md` + `pending.md` + `secondary_review.md` first; continue recorded open items; before context runs out, update all three truthfully (closed handoff loop).
+
 ## Current status (2026-10-21, post `5cc332a`)
 
 - All pending.md audit items (P0-1…P2-2) implemented in commit `5cc332a`; suite is **27 tests** (13 engine), build green, vendor-three 240.84 kB gzip unchanged. Residuals requiring human passes are listed at the end of `pending.md`.
