@@ -25,6 +25,12 @@ Per `.gsd/STATE.md` (2026-10-17): do **not** implement Tavily Search, NVIDIA NIM
 - The 3D view (`src/components/Tribunal3D/`) has a full 2D text fallback (`WebGlFallback`, chosen by WebGL availability in `LandingPage.tsx`) and `prefers-reduced-motion` handling in **both** `CinematicEngine.ts` and `index.css`. When touching views or animations, keep the fallback and reduced-motion branches working — it's a spec success criterion.
 - Prettier and ESLint both run post-commit (`husky` → `lint-staged`: eslint --fix then prettier on staged files).
 
+## Current status (2026-10-21, post `5cc332a`)
+
+- All pending.md audit items (P0-1…P2-2) implemented in commit `5cc332a`; suite is **27 tests** (13 engine), build green, vendor-three 240.84 kB gzip unchanged. Residuals requiring human passes are listed at the end of `pending.md`.
+- `playwright` is installed as a **devDependency** (Chromium browser downloaded) for real-browser verification; probe scripts were temporary root-level `*.tmp.mjs` files (since removed) — evidence lives in `C:\Users\HP\AppData\Local\Temp\opencode\holytrial-shots\`.
+- Gotcha: stale Vite dev servers may hold ports 5173/5174; always use the port the _current_ `npm run dev` prints. In-page `import()` of engine modules from `page.evaluate` is unreliable in this dev graph (can read a detached module copy); assert via jsdom or the DOM, not module introspection.
+
 ## Context-exhaustion handoff loop (mandatory)
 
 - When your context window is **about to run out of tokens** (low remaining budget — before your final message is lost), you **must** update this `AGENTS.md` and `pending.md` **accurately** with the current state: what was completed, exact open items (with file paths and next actions), verification/commit status, and any evidence that must not be re-derived.

@@ -4,147 +4,175 @@
 > whenever your context window is about to run out of tokens, **update this file and `AGENTS.md` accurately before your final message** — record what was completed (with commit hashes), the exact open items with file paths and next actions, and the current verification status. Then explicitly tell the next instance/session to read both files first, continue the open items, and repeat this update step. Keep the two files consistent. Every dying session hands off a truthful snapshot; every incoming session maintains it — a closed loop.
 
 Audit scope: the full "Trial Awakens" landing implementation prompt (§1–§14).
-Method: `npm run check` (typecheck + lint + format + 24 tests), `npm run build`,
-dev-server HTTP probes, code review of every scene/engine/UI file, asset-URL
-sweep. **No real browser automation is available in this environment — every
-item marked UNVERIFIED needs a human browser pass.** No items below have been
-"fixed" — recording only.
+Method (2026-10-21, two passes): audit pass at `a37a1dc` (code review, 24 tests),
+then an **implementation + real-browser pass at `5cc332a`** — `npm run check`
+(typecheck + lint + format + **27 tests**, 13 engine), `npm run build`
+(three vendor **240.84 kB gzip — unchanged**), and a **Playwright + Chromium**
+real-browser pass (tooling installed this session; see "Verification log").
 
-Legend: ☐ open · priority P0 (acceptance-critical) / P1 (spec deviation) / P2 (quality debt)
+Legend: ✅ done (evidence cited) · ◐ partial (residual listed) · P0/P1/P2 priority
 
 ---
+
+## Status summary
+
+**Every audit item was implemented at `5cc332a`; 27/27 tests green, build green,
+browser pass executed.** Remaining residuals are explicitly listed per item and
+in §"Open items".
 
 ## P0 — Acceptance-critical
 
-- [ ] **P0-1. Real-browser visual verification of the 7.5 s cinematic** — **UNVERIFIED**
-  - Requirement: §13 Phase 7 / §14 "run the application and review the opening as a real user would experience it" (desktop: opening journey, composition, causality legibility, no broken objects or console errors).
-  - Evidence gap: engine timing is test-verified (10 timing tests pass), but every visual claim (framing at p=0 arrival, sigil trace, strut docking, strike recoil, bolt sequence, gate vista, occlusion, fog balance) was never rendered in a browser this session.
-  - Files: all `src/components/Tribunal3D/*`, `src/components/LandingPage.tsx`.
-  - Next action: human pass on `npm run dev` (Chromium + Firefox, 60 fps), check DevTools console is clean through p=0→1 and through each interaction.
-
-- [ ] **P0-2. Browser check: mobile presentation** — **UNVERIFIED**
-  - Requirement: §14 "a usable mobile experience"; §12 graceful degradation.
-  - Evidence: code exists (rig pull-back `isMobile → z+3, y+0.5`, px-parallax reduced), no device emulation run.
-  - Files: `TribunalCanvas.tsx` (CinematicCameraRig), `WebGlFallback.tsx`.
-  - Next action: DevTools mobile emulation run; verify dais/gate framing and the CTA are not obscured on small screens; check tap targets on the artifacts.
-
-- [ ] **P0-3. Browser check: reduced-motion presentation** — **PARTIAL**
-  - Requirement: §12 "Respect reduced-motion preferences"; §14 reduced-motion case checked.
-  - Evidence: engine _compresses_ the timeline ×0.3 (test asserts completion <4 s) — same motions, sprinted; CSS block (`index.css` L122) kills only CSS animations, not framer-motion CTA/title transitions. Sprinting through identical movement may not honor the preference's intent (reduce movement).
-  - Files: `CinematicEngine.ts` (L287), `index.css` (L122), `LandingPage.tsx` (motion components).
-  - Next action: decide intended presentation for reduce users (e.g., let cinematic durations stand but damp amplitude: skip streak/vibration/breathing, static camera pans→cuts), wire `state.reducedMotion` into scene files (it is currently only read by the engine's act-duration path), test in browser with emulated reduce.
-
-- [ ] **P0-4. Browser check: audio on/off behavior** — **PARTIAL** (code-verified only)
-  - Requirement: §10 sound OFF, opt-in, mute-immediate; §14 audio-disabled case checked.
-  - Evidence: `AudioSynthesizer.ts` `isMuted=true` init, guards in every cue, `stopAmbient()` on mute, resume-on-gesture path — code-verified with tests rendering the toggle (LandingPage.test L24–40). No actual Web Audio playback was heard/verified.
-  - Files: `AudioSynthesizer.ts`, `useCinematic.ts`.
-  - Next action: browser pass — enable sound mid-cinematic (late opt-in must still hear gateSwell), toggle off during a cue (verify immediate silence), verify autoplay-block path (no console error when ctx is denied).
-
-- [ ] **P0-5. Browser check: WebGL-failure fallback** — **PARTIAL** (jsdom-verified only)
-  - Requirement: §14 "[WebGL] failure cases checked"; 2D fallback must stay operative.
-  - Evidence: `LandingPage.test` renders `WebGlFallback` when `getContext` fails (passes); windows retimed to the new act map. Real-GPU-failure behavior (context lost mid-run) never tested.
-  - Files: `WebGlFallback.tsx`, `LandingPage.tsx` (`checkWebGlSupport`).
-  - Next action: force-disable WebGL in browser devtools; confirm fallback choreography and CTA still complete; consider handling `webglcontextlost`.
-
-- [ ] **P0-6. Browser check: rendering performance (FPS)** — **UNVERIFIED**
-  - Requirement: §12 "Measure the actual payload and GPU cost rather than assuming"; "stable motion on capable desktop [and] graceful degradation".
-  - Evidence: payload measured (three vendor 240.8 kB gzip, unchanged; build clean). No FPS/GPU measurement exists.
-  - Files: whole 3D scene.
-  - Next action: browser FPS read (e.g., performance tab or stats helper) across the full run + idle; if <~45 fps on mid hardware, cut bloom-free additive surfaces / lower `dpr` cap first.
-
-- [ ] **P0-7. Keyboard cannot start claim inspection or make the cross-exam decision** — **FAIL**
-  - Requirement: §7 "Provide pointer, touch, and keyboard-accessible interaction"; §14 "Interactions work across mouse, touch and keyboard".
-  - Evidence: `LandingPage.tsx` L40–57 binds keys 1/2/3 to `engine.inspectEvidence(id)` and Escape to finishing. There is **no key for `inspectClaim`** (Escape only finishes it), and **no key routes to `engine.makeDecision`** — during the decision window keys 1/2/3 inspect-support/contradict instead of choosing, so the cross-exam choice is pointer/touch-only. The in-3D component routes clicks to decisions (`EvidenceCluster.handleFragClick`), but the keyboard path bypasses it.
-  - Files: `src/components/LandingPage.tsx` (keyboard effect), `CinematicEngine.ts` (`inspectEvidence` vs `makeDecision`).
-  - Next action: bind e.g. `c`→`inspectClaim`/`E→click claim`, and route keys 1/2 through a decision-aware dispatcher (if `decisionWindowActive && crossExamChoice === null` → `makeDecision('align_support'|'expose_contradiction')`, else `inspectEvidence`). Add engine-level tests for both paths.
-
-- [ ] **P0-8. Post-decision camera hold is inescapable until the finale** — **PARTIAL**
-  - Requirement: §7 "Preserve the camera and object states... Do not reset the scene"; interactions "immediate and satisfying"; §14 "no dead interactions".
-  - Evidence: `engine.makeDecision()` sets `isInteracting=true; interactionTarget='supporting'|'contradictory'` and only `transitionTo(FINALE)` clears it (engine L325–330). `finishClaimInspect` requires target==='claim'; `finishEvidenceInspect` requires `activeEvidenceInspect` — neither clears a post-decision hold, so Escape cannot release the camera between decision (≥3.1 s) and finale. Deliberate framing or bug is unproven visually.
-  - Files: `CinematicEngine.ts` (makeDecision / finish*), `TribunalCanvas.tsx` (rig override), `EvidenceCluster.tsx`.
-  - Next action: add `releaseDecisionHold()` (or reuse `finishEvidenceInspect`) and bind it to Escape; verify visibly that the camera returns to the story trajectory immediately after choosing.
-
----
+- [x] **P0-1. Real-browser visual verification of the 7.5 s cinematic** — ✅ **DONE (browser-verified)**
+  - Playwright + Chromium (headless + headful): ~15 screenshots across the
+    timeline — opening streak, awakening, evidence struts in flight with the
+    correct nav phase, opposition framing, revelation, finale with CTA
+    (`a1–a7`, `f1–f2`, `h1–h4` in the shots folder below). **Zero console/page
+    errors in every session.** Story stages render distinct, coherent
+    compositions (wheel/claim/monolith/gate all appear at their story beats).
+  - CTA is a real, clickable DOM control after completion
+    (`ctaCount: 1, charterCount: 1` in three independent probes).
+- [x] **P0-2. Mobile presentation** — ✅ **DONE (browser-verified)**
+  - 390×844 touch context (`isMobile`, hasTouch, DPR 2): mobile shots
+    `c1-mobile-t3.3.png`, `c2-mobile-cta.png` — dais/gate framing intact,
+    CTA visible at completion, zero errors.
+  - Residual: tap-target sizes on artifacts were not asserted programmatically
+    (visual pass only).
+- [x] **P0-3. Reduced-motion presentation** — ✅ **DONE (design decision + tests + browser pump)**
+  - Design: **full natural pacing retained (no ×0.3 compression)**;
+    micro-motion amplitude is damped scene-side via `state.reducedMotion`
+    propagated into all four scene components + camera rig (breathing=0,
+    vibration=0, sway=0, motes frozen, parallax/rumble skipped).
+    Engine test rewritten: reduce users get the **full-length** narrative
+    (`6.9 s ≤ ctaAt ≤ 8.0 s`), flag `reducedMotion: true`.
+  - Browser evidence: in-page engine pump at 6.0 s ⇒ act `REVELATION`,
+    `cta: false`, `reducedMotion: true` → pacing is **not compressed in a real
+    browser** either.
+  - Residual: scene amplitudes are small by design, so "reduced vs full"
+    side-by-side visual difference is subtle in screenshots — human judgement
+    pass still worthwhile.
+- [x] **P0-4. Audio on/off behavior** — ✅ **DONE (code + tests; audibility not automatable)**
+  - Spatial audio added (see P1-5); mute-immediate, opt-in, autoplay-block
+    paths remain test-covered; zero console errors across all browser sessions
+    (the synth initializes without a user gesture and guards cues).
+  - Residual: automation cannot _hear_; audible playback/late-opt-in audibility
+    (`gateSwell` when enabling sound mid-run) is a human pass.
+- [x] **P0-5. WebGL-failure fallback** — ✅ **DONE (browser-verified)**
+  - Chromium launched with `--disable-webgl --disable-webgl2 --disable-3d-apis`:
+    `fallbackActive: true`, fallback renders the authored SVG scene (shots
+    `d1–d2`), timeline completes to CTA, **zero errors**.
+  - Residual: `webglcontextlost` mid-run recovery is still unhandled
+    (never observed; noted as future hardening).
+- [x] **P0-6. Rendering performance (FPS)** — ◐ **PARTIAL (environment-limited)**
+  - Measured 4–19 fps headless/headful — but under **SwiftShader software
+    rasterization in this VM**, not representative of capable hardware. At low
+    fps the delta-clamp (0.1 s cap) correctly stretches wall-clock pacing
+    rather than skipping story states — rate-independence observed live.
+  - Remaining action: FPS read on real GPU hardware (human pass; stats helper
+    or performance tab). Bundle cost stays verified at 240.84 kB gzip.
+- [x] **P0-7. Keyboard: claim inspection + cross-exam decision** — ✅ **DONE (code + jsdom)**
+  - `c` → claim inspect; `1/q`, `2/w` → **promoted to `makeDecision('align_support'|'expose_contradiction')`** while
+    `decisionWindowActive && crossExamChoice === null`, else artifact inspect;
+    `3/e` → incomplete artifact; Escape → finish inspects + release hold.
+    Engine tests cover the dispatch matrix.
+  - Residual: real-browser _keyboard_ assertions could not be applied — the
+    in-page module introspection probe method is unreliable in this Vite dev
+    graph (detached-module imports read `totalElapsed: 0` even while the DOM
+    shows the completed finale; stale dev servers on ports 5173/5174 also
+    polluted early probes). jsdom keyboard-routing tests are green; human spot
+    check recommended.
+- [x] **P0-8. Post-decision camera hold** — ✅ **DONE**
+  - New `engine.releaseDecisionHold()` clears `isInteracting`/
+    `interactionTarget` only while a decision hold is active (choice persists,
+    no-op when an evidence-inspect frame is open); wired to Escape. Two engine
+    tests (guard + bare-hold release).
+  - Residual: camera visually returning to trajectory after Escape was not
+    independently screenshot-matched (would need interactive keyboard pass).
 
 ## P1 — Spec deviations
 
-- [ ] **P1-1. Per-frame allocations contradict the "no allocation" rule and the docs claim** — **FAIL**
-  - Requirement: §6 discipline; Trionn-adopted pattern documented as "no per-frame allocation" (`docs/design/trial-awakens.md` §5 says "no per-frame allocation, no competing timers").
-  - Evidence: 8 sites inside `useFrame` bodies allocate every frame at 60 fps: `EvidenceCluster.tsx` L190, L214, L249, L291 (`new THREE.Vector3().lerpVectors(...)`) and `OppositionMonolith.tsx` L82, L86, L90, L100 (+ per-frame `CENTER_MECHANISM.clone()` and `pos.recoil.clone()`). ~10–20 short-lived Vector3/frame → steady GC churn.
-  - Files: `EvidenceCluster.tsx`, `OppositionMonolith.tsx`, `docs/design/trial-awakens.md`.
-  - Next action: hoist `scratchTarget` module-level temps (`.copy(temp).lerpVectors(...)`) or preallocate per-artifact target vectors; fix both the file header comments and the docs claim.
-
-- [ ] **P1-2. Looping pulses violate the "no repeated glowing pulses" rule** — **PARTIAL**
-  - Requirement: §6 "Avoid ... repeated glowing pulses"; the AGENTS-locked requirement "no perpetual rotation/pulses".
-  - Evidence: CTA button carries `animate-gate-pulse` (4 s ease-in-out infinite, `index.css` L103–105); fallback shaft `animate-shaft-drift` (12 s infinite); dais inlay glow breathes via `Math.sin(clock*2)*0.12` continuously during WEIGHING arc (`TribunalArchitecture.tsx` copperGlow target). CTA affordance pulse may be defensible; the act-long sine breathing is a literal violation.
-  - Files: `index.css`, `TribunalArchitecture.tsx`, `LandingPage.tsx` (CTA class), `WebGlFallback.tsx`.
-  - Next action: replace the inlay sine with a one-shot brighten at each story transition; re-class the CTA to a static border emphasis (or keep and justify explicitly as an affordance exception after browser review).
-
-- [ ] **P1-3. "Progress maps 1:1 to elapsed time" comment is inaccurate** — **PARTIAL**
-  - Requirement: honest docs/comments (implied by §14 honesty and CI'd code standards).
-  - Evidence: `CinematicEngine.updateProgress()` L341–351 applies a smoothstep **within** each act, so progress ≠ linear elapsed inside acts (act boundaries and durations are exact; the CTA test is actElapsed-based, so tests are unaffected). The header comment (L150–153) and `docs/design/trial-awakens.md` §5 both claim 1:1 linearity.
-  - Files: `CinematicEngine.ts`, `docs/design/trial-awakens.md`, and every scene component that claims windows in "elapsed s = progress × 7.5" (all comment headers).
-  - Next action: either make progress strictly linear (drop the smoothstep) — safer for window math already tuned — or update all comments/docs to "eased-in-act progress". Verify scene windows still land correctly after the change.
-
-- [ ] **P1-4. Repeated environmental meshes are not instanced** — **PARTIAL**
-  - Requirement: §12 "instancing for repeated environmental details".
-  - Evidence: left/right colonnades = 10 separate `<mesh>` cylinders + `far-col` 4 more (`TribunalArchitecture.tsx`), each with own draw call.
-  - Files: `TribunalArchitecture.tsx`.
-  - Next action: convert colonnades + far colonnade to `InstancedMesh`; verify silhouette passes unchanged in browser.
-
-- [ ] **P1-5. Audio lacks spatialization ("emerge from their apparent sources")** — **PARTIAL**
-  - Requirement: §10 "Allow sounds to emerge from their apparent sources"; spatially coherent.
-  - Evidence: all cues render straight to `ctx.destination` (mono bed); no `PannerNode`/HRTF anywhere (`AudioSynthesizer.ts`).
-  - Files: `AudioSynthesizer.ts`.
-  - Next action: for the predictable act cues, add a two-channel pan per event (e.g., evidence docks L/R per artifact, opposition impact R, gate swell C) via `PannerNode` or `StereoPannerNode` with a documented fallback.
-
-- [ ] **P1-6. Excess landing-surface text control ("examine the charter")** — **PARTIAL**
-  - Requirement: §11 "The only persistent visible UI control is the small sound toggle"; "No redundant labels"; CTA block minimal.
-  - Evidence: a secondary visible text button sits directly under `ENTER THE COURT` (`LandingPage.tsx` L180–186). The landing test asserts absence of uppercase `'EXAMINE CHARTER'` — the actual string is lowercase `'examine the charter'`, so the check passes while the control exists (false confidence).
-  - Files: `LandingPage.tsx`, `src/test/LandingPage.test.tsx`.
-  - Next action: decide with product whether the charter cue stays (then justify as a "genuinely necessary" discoverability cue), else move it into the post-CTA only after completion or remove; fix the test to match the factual string either way.
-
-- [ ] **P1-7. No designed loading state** — **PARTIAL**
-  - Requirement: §12 "Use a coherent loading state".
-  - Evidence: app boots from a ~1.1 KB index.html + small chunks with no loader; since every asset is procedural this is currently near-instant, but nothing handles slow first-paint or defers the three bundle (`vendor-three` 240 kB) — the first visible frame can be blank on slow networks.
-  - Files: `index.html`, `src/App` or equivalent entry, `TribunalCanvas.tsx`.
-  - Next action: add a palette-correct minimal loading veil that yields to the canvas on mount (and to `WebGlFallback` on failure); verify perceived time-to-first-frame.
-
-- [ ] **P1-8. Audio engine listeners/apologies never torn down on unmount** — **PARTIAL**
-  - Requirement: §12 "appropriate cleanup of ... observers, event listeners, and animation loops".
-  - Evidence: `AudioSynthesizer` constructor registers a module-scope `visibilitychange` listener at import time with no removal path (singleton persists across route view switches); the deferred ambient `setTimeout(650)` in `stopAmbient()` is not cancelled if the component unmounts in that window (engine rAF teardown is clean in `useCinematic`).
-  - Files: `AudioSynthesizer.ts`.
-  - Next action: expose `dispose()` on the synth, call it from `useCinematic` teardown, and cancel the pending stop-timeout.
-
----
+- [x] **P1-1. Per-frame allocations** — ✅ **DONE**: scratch vectors hoisted to
+      module scope in `EvidenceCluster` (`scratchTarget`) and `OppositionMonolith`
+      (`scratchTarget`); `.clone()` calls eliminated; docs claim corrected.
+- [x] **P1-2. Looping pulses** — ✅ **DONE**: `animate-gate-pulse` +
+      `animate-shaft-drift` utilities/keyframes deleted (`index.css`), CTA static,
+      fallback beam/glow static; `TribunalArchitecture` inlay sine → constant 0.55
+      (steady processing light, §6-compliant).
+- [x] **P1-3. 1:1 progress comment** — ✅ **DONE**: docs §5 + engine header now
+      state "act boundaries exact wall-clock fractions; smoothstepped within acts";
+      scene header comments corrected (e.g. `OppositionMonolith.tsx`).
+- [x] **P1-4. Instancing** — ✅ **DONE**: 10 main columns + 10 copper bands + 4
+      far columns → three `InstancedMesh` (unit-height cylinders scaled
+      per-instance; bands at constant world-y −0.9). Build verified unchanged.
+- [x] **P1-5. Spatial audio** — ✅ **DONE**: engine emits `pendingAudioPans[]`
+      parallel to `pendingAudioEvents[]` (per-cue defaults: revealTexture −0.35,
+      evidenceDock +0.15, oppositionImpact +0.5, artifactInspect −0.6/−0.5/+0.6,
+      mechanismShift ±0.4); `AudioSynthesizer.connectPanned()` via
+      `StereoPannerNode` with graceful fallback; tested pairing in jsdom.
+- [x] **P1-6. Charter link** — ✅ **DONE (decision recorded)**: `examine the
+charter` is retained as the single subordinate information control and
+      appears **only alongside the final CTA** (never during the cinematic) —
+      justified as a necessary discoverability cue at phase-gate time; tests now
+      assert the factual lowercase string and phase-gating.
+- [x] **P1-7. Loading state** — ✅ **DONE**: palette-correct static veil inside
+      `#root` (`index.html`); browser-verified: React mount discards it
+      (`veilPresent: false` post-mount); no looping pulses in the veil.
+- [x] **P1-8. Audio teardown** — ✅ **DONE**: `AudioSynthesizer.dispose()`
+      (clears pending `stopAmbientTimeout`, removes visibility listener, stops
+      oscillators, closes context); wired via `useCinematic` unmount cleanup.
 
 ## P2 — Quality debt
 
-- [ ] **P2-1. Stale window constant in ClaimRelic** — **PARTIAL**
-  - Requirement: comment/code coherence for story windows.
-  - Evidence: `ClaimRelic.tsx` lean window `easedWindow(p, 0.24, 0.6133)` still encodes the pre-rebuild OPPOSITION end (0.6133 → old 4.6 s); current OPPOSITION ends at 0.6. Visual effect is a 0.073-overlap lean into WEIGHING.
-  - Files: `ClaimRelic.tsx`.
-  - Next action: set to 0.6 (or justify the overlap), re-run timing-sensitive tests.
-
-- [ ] **P2-2. Weak/bypassed test assertions** — **PARTIAL**
-  - Requirement: meaningful regression nets.
-  - Evidence: `LandingPage.test` L17 checks `'EXAMINE CHARTER'` (uppercase) — misses the real lowercase button (see P1-6); L61–76 "shows scroll hint after intro completes" uses fake timers the engine's rAF clock ignores and only asserts the progress nav exists (placeholder-strength). CaseDossier/cache of 24 tests passes at 100%.
-  - Files: `src/test/LandingPage.test.tsx`.
-  - Next action: align selectors with actual strings; replace the rAF-blind test with an engine-driven assertion (drive `engine.update(dt)` directly as the CinematicEngine tests do).
+- [x] **P2-1. Stale window constant** — ✅ **DONE**: `ClaimRelic` lean window
+      `0.6133 → 0.6` (exact OPPOSITION end).
+- [x] **P2-2. Weak/bypassed test assertions** — ✅ **DONE**: lowercase selector
+      fix; rAF-blind fake-timer test replaced by an engine-driven one
+      (drive `update(1/60)` ×486 → CTA + charter asserted). Suite now **27 tests
+      (13 engine + 8 landing + 6 CaseDossier)**, all green.
 
 ---
 
+## Verification log (implementation pass)
+
+- Commit: `5cc332a` — `feat(landing): spatial audio pans, decision-hold release,
+allocation-free scenes, keyboard routing, instanced colonnades, static
+loading veil` (14 files). `npm run check` green (27/27), `npm run build`
+  green, vendor-three **240.84 kB gzip unchanged**.
+- Browser tooling: `playwright` added as **devDependency** (Chromium installed).
+  Screenshots + probe JSON evidence:
+  `C:\Users\HP\AppData\Local\Temp\opencode\holytrial-shots\`
+  (`a1–a10` desktop timeline/keys, `b1–b2` reduced motion, `c1–c2` mobile,
+  `d1–d2` WebGL-fallback, `f1–f4`, `h1–h5` headful journey).
+- **Environment caveats (important for any browser re-pass here):**
+  - Stale Vite dev servers occupied ports **5173/5174** from earlier sessions;
+    the fresh server ran on **5175**. Point probes at the port the current
+    `npm run dev` actually prints.
+  - Headless-Chromium _in-page_ `import('/src/components/CinematicEngine.ts')`
+    introspection is unreliable in this dev graph: it can resolve a detached
+    module evaluation and read `totalElapsed: 0` even while the rendered DOM
+    shows the completed finale (jsdom tests + screenshots prove the wiring).
+    Don't burn time re-probing this way.
+  - fps values (4–19) are SwiftShader artifacts, not app measurements.
+
+## Open items (residuals only)
+
+1. **Human pass on capable hardware**: 60 fps desktop + audible-sound pass
+   (P0-4/P0-6), keyboard spot check in a real browser (P0-7/P0-8 visual cue),
+   reduced-motion side-by-side judgement (P0-3).
+2. `webglcontextlost` recovery handler (nice-to-have hardening, `LandingPage.tsx`).
+3. Interactive keyboard browser verification would need the app served in **test
+   mode** (e.g. expose the engine on `window` under a build flag) instead of
+   dev-module import probing — a small, deliberate hook if desired.
+
 ## Verified clean during this audit (no action)
 
-These were re-executed with fresh evidence on commit `e417a8f`: `npm run check`
-(typecheck 0 errors, eslint clean, prettier clean, **24/24 tests** incl. 10
-master-timeline timing tests, 8 landing-UI tests, 6 CaseDossier preservation
-tests), `npm run build` (905 ms; three vendor 240.84 kB gzip — unchanged, zero
-new dependencies), dev server boot + HTTP 200 on `/`,
-`/src/components/Tribunal3D/ClaimRelic.tsx`, `/src/components/Tribunal3D/etch.ts`,
-remote-asset sweep (only SVG `xmlns` namespace strings — no external asset
-URLs), CaseDossier/CharterDrawer/CourtSeal/CI-workflow diff-free across the
-rebuild commits, sound-off-by-default + toggle tests, no-navbar/no-2D-toggle/
-no-early-CTA tests, WebGL-fallback render test, delta-clamped/rate-independent
-timing tests, interaction-overlay-does-not-extend-timeline tests, decision
-affects state not the clock test, and the pass-through-all-acts test.
+Re-executed with fresh evidence: `npm run check` (typecheck 0 errors, eslint
+clean, prettier clean, **27/27 tests** incl. 13 master-timeline engine tests,
+8 landing-UI tests, 6 CaseDossier preservation tests), `npm run build` (three
+vendor 240.84 kB gzip — unchanged), pass-through-all-acts test, delta-clamped
+rate-independence (also observed live at 4–19 fps), interaction-overlays-never-
+extend-the-timeline, decision-affects-state-not-the-clock, pan/event pairing,
+releaseDecisionHold guard paths, reduced-motion full-pacing, no-navbar/
+no-early-CTA/no-switcher tests, character-turn stance tests (charter retained
+post-CTA only), WebGL-fallback render test, remote-asset sweep (no external
+URLs), zero console errors in all 4 browser session types (desktop / reduced /
+mobile / WebGL-off).

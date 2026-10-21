@@ -83,28 +83,43 @@ Attribution obligations: none (no third-party assets shipped).
 
 ## 5. Animation architecture
 
-- **One authority:** `CinematicEngine` owns story time. Progress is a linear
-  map of elapsed seconds (7.5 s total); act windows are pure data
+- **One authority:** `CinematicEngine` owns story time. Act boundaries are
+  exact wall-clock fractions of the 7.5 s master timeline; WITHIN each act
+  progress is smoothstepped for cinematic easing. Act windows are pure data
   (`ACT_PROGRESS_RANGES`); delta is never used to advance story time.
 - **One pattern:** every scene object computes a windowed value from
   `progress` via `etch.ts` helpers (`windowT`, `easedWindow`) and sets
-  properties in place — no per-frame allocation, no competing timers, no
-  restarts on re-render.
+  properties in place — per-frame work is allocation-free (scratch vectors
+  are hoisted to module scope; colonnades are `InstancedMesh`), there are no
+  competing timers and no restarts on re-render.
 - **Interactions are overlays:** claim inspection, per-artifact evidence
   inspection, and the cross-exam choice flip state flags the scene reads
   opportunistically. They never pause, extend, or restart the master
   timeline; both cross-exam paths converge on the gate reveal.
-- **Accessibility:** pointer + touch + keyboard (1/2/3 artifacts, claim
-  inspect, Escape/back, cross-exam 1/2 during the decision window) — routed
-  through the same engine flags as pointer clicks.
-- **Fallbacks:** WebGL-unavailable path (authored SVG with its own windowed
-  choreography), `prefers-reduced-motion` branches in both the engine and
-  CSS, audio strictly opt-in and muting-safe.
+- **Accessibility:** pointer + touch + keyboard (1/q and 2/w target the
+  corroborant / dissent shard — promoted to the cross-exam decision when the
+  decision window is open, 3/e targets the veiled record, `c` inspects the
+  claim, Escape/back) — routed through the same engine flags as pointer
+  clicks. Escape also releases the post-decision camera hold
+  (`releaseDecisionHold`); the choice itself persists.
+- **Spatial audio:** cues carry an engine-estimated stereo position
+  (`pendingAudioPans` parallel to `pendingAudioEvents`), routed through
+  `StereoPannerNode` when available — arrival streak left, the wedge's
+  strike from the right, artifacts at their dock positions. Strictly opt-in
+  and muting-safe; full teardown on unmount (context close, listener and
+  timer removal).
+- **Reduced motion:** the narrative keeps its full natural pacing (no time
+  compression); micro-motion amplitude — idle breathing, impact vibration,
+  sway, motes drift, parallax, camera rumble — is damped or frozen scene-side
+  via `state.reducedMotion`.
+- **Fallbacks:** WebGL-unavailable path (authored SVG, static light and
+  glow — no looping pulses), `prefers-reduced-motion` branches in both the
+  engine and CSS.
 
 ## 6. Verification
 
-- `npm run check` (typecheck + lint + format + 24 tests incl. 10 master-timeline
-  timing regressions) — passing.
+- `npm run check` (typecheck + lint + format + 27 tests incl. 13 master-timeline
+  engine tests) — passing.
 - `npm run build` — passing; bundle unchanged (three vendor 240.8 kB gzip;
   no new dependencies).
 - Dev server boots with HTTP 200 on root and module URLs.
