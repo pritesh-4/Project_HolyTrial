@@ -1,5 +1,8 @@
 # pending.md — Holy Trial Audit (2026-10-21)
 
+> **Context-exhaustion handoff loop (mandatory rule, mirrors AGENTS.md §"Context-exhaustion handoff loop"):**
+> whenever your context window is about to run out of tokens, **update this file and `AGENTS.md` accurately before your final message** — record what was completed (with commit hashes), the exact open items with file paths and next actions, and the current verification status. Then explicitly tell the next instance/session to read both files first, continue the open items, and repeat this update step. Keep the two files consistent. Every dying session hands off a truthful snapshot; every incoming session maintains it — a closed loop.
+
 Audit scope: the full "Trial Awakens" landing implementation prompt (§1–§14).
 Method: `npm run check` (typecheck + lint + format + 24 tests), `npm run build`,
 dev-server HTTP probes, code review of every scene/engine/UI file, asset-URL

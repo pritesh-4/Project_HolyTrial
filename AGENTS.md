@@ -25,6 +25,12 @@ Per `.gsd/STATE.md` (2026-10-17): do **not** implement Tavily Search, NVIDIA NIM
 - The 3D view (`src/components/Tribunal3D/`) has a full 2D text fallback (`WebGlFallback`, chosen by WebGL availability in `LandingPage.tsx`) and `prefers-reduced-motion` handling in **both** `CinematicEngine.ts` and `index.css`. When touching views or animations, keep the fallback and reduced-motion branches working — it's a spec success criterion.
 - Prettier and ESLint both run post-commit (`husky` → `lint-staged`: eslint --fix then prettier on staged files).
 
+## Context-exhaustion handoff loop (mandatory)
+
+- When your context window is **about to run out of tokens** (low remaining budget — before your final message is lost), you **must** update this `AGENTS.md` and `pending.md` **accurately** with the current state: what was completed, exact open items (with file paths and next actions), verification/commit status, and any evidence that must not be re-derived.
+- Then, in your final visible response, **explicitly tell the next instance/session to do the same** — instruct it to read `AGENTS.md` + `pending.md` first, continue the recorded open items, and repeat this update-before-death step. This creates a **closed loop**: every dying session hands off a truthful snapshot, and every incoming session maintains it.
+- Rules: update _before_ the final answer, not after; keep both files consistent with each other; cite commit hashes/`git log -1 --oneline` for what's actually landed; never leave the handoff claim unverified if a fresh check is cheap (`npm run check`).
+
 ## Commits
 
 - Format `type(scope): description` (feat/fix/docs/refactor/test/chore). One task = one commit; scope is the phase number for phase work (e.g. `feat(phase-2): ...`).
