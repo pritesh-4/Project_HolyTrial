@@ -1,31 +1,35 @@
+/**
+ * OppositionMonolith — "The Challenge"
+ *
+ * An adversarial wedge leans in, thrusts against the claim's frame at the
+ * impact moment (3.9–4.5 s), recoils, then retreats — with the branch-aware
+ * resolution chosen during the cross-examination window.
+ *
+ * The claim records the strike (procedural fracture, same timeline window
+ * in ClaimRelic). Here we render the physical contact: one expanding impact
+ * ring and a brief ember flash — no particle bursts, no combat noise.
+ */
 import React, { useRef, useMemo } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { canonicalColors } from './SceneMaterials';
 import { type CrossExamChoice } from '../CinematicEngine';
+import { windowT, easedWindow } from './etch';
 
 interface OppositionMonolithProps {
   progress: number;
   crossExamChoice: CrossExamChoice;
 }
 
-// Deterministic spark generator
-function generateSparkPositions(count: number): Float32Array {
-  const positions = new Float32Array(count * 3);
-  for (let i = 0; i < count; i++) {
-    const s1 = Math.sin(i * 19.34 + 43.12) * 43758.5453;
-    const r1 = s1 - Math.floor(s1);
-    const s2 = Math.sin((i + 1) * 29.87 + 17.54) * 43758.5453;
-    const r2 = s2 - Math.floor(s2);
-    const s3 = Math.sin((i + 2) * 37.65 + 81.23) * 43758.5453;
-    const r3 = s3 - Math.floor(s3);
-
-    positions[i * 3] = (r1 - 0.5) * 0.8;
-    positions[i * 3 + 1] = (r2 - 0.5) * 0.8;
-    positions[i * 3 + 2] = (r3 - 0.5) * 0.8;
-  }
-  return positions;
-}
+// Master-timeline windows (elapsed s = progress × 7.5)
+const CHALLENGE_WIN = {
+  approach: [0.4133, 0.53] as const, // 3.1–4.0 s
+  thrust: [0.53, 0.572] as const, // fast advance
+  contact: [0.565, 0.615] as const, // impact ring / flash
+  recoil: [0.572, 0.64] as const, // pushes back
+  tension: [0.64, 0.7] as const, // holds, alive
+  retreat: [0.7, 0.82] as const, // 5.25–6.15 s
+};
 
 export const OppositionMonolith: React.FC<OppositionMonolithProps> = ({
   progress,
@@ -33,68 +37,74 @@ export const OppositionMonolith: React.FC<OppositionMonolithProps> = ({
 }) => {
   const groupRef = useRef<THREE.Group>(null);
   const bladeRef = useRef<THREE.Mesh>(null);
-  const sparkMatRef = useRef<THREE.PointsMaterial>(null);
+  const impactRingRef = useRef<THREE.Mesh>(null);
+  const flashRef = useRef<THREE.Mesh>(null);
   const contactLightRef = useRef<THREE.PointLight>(null);
   const fractureLightRef = useRef<THREE.PointLight>(null);
 
-  const sparkData = useMemo(() => generateSparkPositions(35), []);
+  // Static positions (built once)
+  const pos = useMemo(
+    () => ({
+      dormant: new THREE.Vector3(7.5, 6.0, 1.0),
+      approach: new THREE.Vector3(1.7, 0.9, -3.1),
+      clash: new THREE.Vector3(1.02, 0.42, -3.24),
+      recoil: new THREE.Vector3(1.35, 0.65, -3.05),
+      branchRetreat: {
+        default: new THREE.Vector3(4.8, 3.5, -6.0),
+        expose: new THREE.Vector3(3.5, 2.0, -5.0), // pulled back further
+        align: new THREE.Vector3(5.5, 4.0, -4.0), // retreats higher
+      },
+    }),
+    []
+  );
 
   useFrame((state, delta) => {
     if (!groupRef.current) return;
-
     const time = state.clock.getElapsedTime();
-    const dormantPos = new THREE.Vector3(7.5, 6.0, 1.0);
-    const clashPos = new THREE.Vector3(1.15, 0.45, -3.3);
-    const resolvedPos = new THREE.Vector3(4.8, 3.5, -6.0);
+    const p = progress;
 
     // Branch-aware resolved position
-    const branchResolvedPos =
+    const retreatTarget =
       crossExamChoice === 'expose_contradiction'
-        ? new THREE.Vector3(3.5, 2.0, -5.0) // Pulls back further — contradiction exposed
+        ? pos.branchRetreat.expose
         : crossExamChoice === 'align_support'
-          ? new THREE.Vector3(5.5, 4.0, -4.0) // Retreats higher — support aligned first
-          : resolvedPos;
+          ? pos.branchRetreat.align
+          : pos.branchRetreat.default;
 
-    let currentTarget = dormantPos;
-    let sparkOpacity = 0.0;
+    let currentTarget = pos.dormant;
+    let contact = 0;
 
-    // Master-timeline windows: approach 0.427–0.50 (≈3.2–3.8 s), clash sparks
-    // 0.50–0.613 (≈3.75–4.6 s), controlled tension 0.613–0.70, then the
-    // branch-aware retreat during weighing (0.70–0.82, ≈5.25–6.15 s).
-    const approachT = Math.max(0, Math.min(1, (progress - 0.427) / 0.073));
-    const isApproaching = approachT > 0 && progress < 0.613;
-    const isPastOpposition = progress >= 0.613;
-
-    if (progress < 0.427) {
-      currentTarget = dormantPos;
-    } else if (progress < 0.5) {
-      // Approaching
-      const eased = approachT * approachT * (3 - 2 * approachT);
-      currentTarget = new THREE.Vector3().lerpVectors(dormantPos, clashPos, eased);
-    } else if (progress < 0.613) {
-      // At clash — sparks across the impact window
-      currentTarget = clashPos.clone();
-      const clashT = (progress - 0.5) / 0.113;
-      sparkOpacity = Math.sin(clashT * Math.PI) * 0.95;
-    } else if (progress < 0.7) {
-      // Post-clash tension — holds position but with controlled displacement
-      currentTarget = clashPos.clone();
-      currentTarget.x += Math.sin(time * 2) * 0.04;
-      currentTarget.y += Math.cos(time * 1.5) * 0.03;
-    } else if (isPastOpposition) {
-      // Retreat to branch-aware position
-      const resolveT = Math.min(1, (progress - 0.7) / 0.12);
-      const eased = resolveT * resolveT * (3 - 2 * resolveT);
-      currentTarget = new THREE.Vector3().lerpVectors(clashPos, branchResolvedPos, eased);
+    if (p < 0.4133) {
+      currentTarget = pos.dormant;
+    } else if (p < 0.53) {
+      // Lean in — deliberate advance
+      const t = easedWindow(p, CHALLENGE_WIN.approach[0], CHALLENGE_WIN.approach[1]);
+      currentTarget = new THREE.Vector3().lerpVectors(pos.dormant, pos.approach, t);
+    } else if (p < 0.572) {
+      // Thrust — short, committed
+      const t = easedWindow(p, CHALLENGE_WIN.thrust[0], CHALLENGE_WIN.thrust[1]);
+      currentTarget = new THREE.Vector3().lerpVectors(pos.approach, pos.clash, t);
+    } else if (p < 0.64) {
+      // Contact & recoil — the claim takes the strike, the wedge pushes off
+      const t = easedWindow(p, CHALLENGE_WIN.recoil[0], CHALLENGE_WIN.recoil[1]);
+      currentTarget = new THREE.Vector3().lerpVectors(pos.clash, pos.recoil, t);
+      contact = windowT(p, CHALLENGE_WIN.contact[0], CHALLENGE_WIN.contact[1]);
+    } else if (p < 0.7) {
+      // Controlled tension — still a presence, not an exit
+      currentTarget = pos.recoil.clone();
+      currentTarget.x += Math.sin(time * 1.8) * 0.04;
+      currentTarget.y += Math.cos(time * 1.4) * 0.025;
+    } else {
+      // Retreat to branch-aware resolution
+      const t = easedWindow(p, CHALLENGE_WIN.retreat[0], CHALLENGE_WIN.retreat[1]);
+      currentTarget = new THREE.Vector3().lerpVectors(pos.recoil, retreatTarget, t);
     }
-
-    // `isApproaching` keeps blade orientation logic meaningful
-    const isOppositionPhase = isApproaching || (progress >= 0.5 && progress < 0.7);
 
     groupRef.current.position.lerp(currentTarget, delta * 3.8);
 
-    // Orientation
-    const targetRotZ = isOppositionPhase ? -0.28 : -0.15;
+    // Orientation: aggressive lean only while engaged
+    const engaged = p >= 0.4133 && p < 0.7;
+    const targetRotZ = engaged ? -0.26 : -0.14;
     groupRef.current.rotation.z = THREE.MathUtils.damp(
       groupRef.current.rotation.z,
       targetRotZ,
@@ -102,32 +112,32 @@ export const OppositionMonolith: React.FC<OppositionMonolithProps> = ({
       delta
     );
 
-    // Subtle blade rotation during clash
-    if (bladeRef.current && progress >= 0.5 && progress < 0.7) {
-      bladeRef.current.rotation.y = Math.sin(time * 1.5) * 0.08;
+    // Impact ring — expands from the contact point once, then dies
+    if (impactRingRef.current) {
+      const s = 0.15 + contact * 1.5;
+      impactRingRef.current.scale.set(s, s, s);
+      (impactRingRef.current.material as THREE.MeshBasicMaterial).opacity =
+        Math.sin(Math.min(1, contact) * Math.PI) * 0.55;
     }
 
-    // Sparks
-    if (sparkMatRef.current) {
-      sparkMatRef.current.opacity = THREE.MathUtils.damp(
-        sparkMatRef.current.opacity,
-        sparkOpacity,
-        5.0,
-        delta
-      );
+    // Contact flash — one ember beat
+    if (flashRef.current) {
+      (flashRef.current.material as THREE.MeshBasicMaterial).opacity =
+        Math.sin(Math.min(1, contact) * Math.PI) * 0.4;
     }
 
+    // Contact light
     if (contactLightRef.current) {
-      contactLightRef.current.intensity = sparkOpacity * 4.0;
+      contactLightRef.current.intensity = contact * 5.0;
     }
 
-    // Fracture light — visible when contradiction is exposed
+    // Fracture light — branch consequence (expose_contradiction reveals it)
     if (fractureLightRef.current) {
-      const fractureTarget =
-        crossExamChoice === 'expose_contradiction' ? 2.5 + Math.sin(time * 3) * 0.5 : 0;
+      const shown = crossExamChoice === 'expose_contradiction' ? 1 : 0;
+      const target = shown * (2.4 + Math.sin(time * 3) * 0.4);
       fractureLightRef.current.intensity = THREE.MathUtils.damp(
         fractureLightRef.current.intensity,
-        fractureTarget,
+        target,
         3,
         delta
       );
@@ -158,35 +168,43 @@ export const OppositionMonolith: React.FC<OppositionMonolithProps> = ({
         />
       </mesh>
 
-      {/* Fracture Line — visible after decision */}
-      {crossExamChoice !== null && (
+      {/* Fracture Line — only when the contradiction is chosen to be exposed */}
+      {crossExamChoice === 'expose_contradiction' && (
         <mesh position={[0, -0.5, 0.48]} rotation={[0, 0, Math.PI / 6]}>
-          <planeGeometry args={[0.03, 2.5]} />
+          <planeGeometry args={[0.035, 2.5]} />
           <meshStandardMaterial
             color={canonicalColors.oxidizedCopper}
             emissive={new THREE.Color(canonicalColors.ember)}
-            emissiveIntensity={crossExamChoice === 'expose_contradiction' ? 2.0 : 0.5}
+            emissiveIntensity={2.0}
             transparent
             opacity={0.8}
           />
         </mesh>
       )}
 
-      {/* Stress Fracture Sparks */}
-      <points position={[-0.45, -1.8, 0]}>
-        <bufferGeometry>
-          <bufferAttribute attach="attributes-position" args={[sparkData, 3]} />
-        </bufferGeometry>
-        <pointsMaterial
-          ref={sparkMatRef}
-          size={0.1}
+      {/* Contact ring at the strike point */}
+      <mesh ref={impactRingRef} position={[-0.42, -1.5, -0.35]} rotation={[-Math.PI / 2, 0, 0.3]}>
+        <ringGeometry args={[0.34, 0.42, 32]} />
+        <meshBasicMaterial
+          color={canonicalColors.oxidizedCopper}
+          transparent
+          opacity={0}
+          side={THREE.DoubleSide}
+          depthWrite={false}
+        />
+      </mesh>
+
+      {/* Contact flash */}
+      <mesh ref={flashRef} position={[-0.45, -1.55, -0.3]}>
+        <circleGeometry args={[0.55, 20]} />
+        <meshBasicMaterial
           color={canonicalColors.ember}
           transparent
-          opacity={0.0}
+          opacity={0}
           blending={THREE.AdditiveBlending}
           depthWrite={false}
         />
-      </points>
+      </mesh>
 
       {/* Contact Point Glow */}
       <pointLight

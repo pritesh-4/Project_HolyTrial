@@ -6,8 +6,8 @@ import { ClaimRelic } from './ClaimRelic';
 import { EvidenceCluster } from './EvidenceCluster';
 import { OppositionMonolith } from './OppositionMonolith';
 import { canonicalColors } from './SceneMaterials';
-import type { CinematicState, EvidenceId } from '../CinematicEngine';
 import { NarrativeAct } from '../CinematicEngine';
+import type { CinematicState, EvidenceId } from '../CinematicEngine';
 
 interface TribunalCanvasProps {
   cinematicState: CinematicState;
@@ -29,31 +29,33 @@ interface TrajectoryKey {
   look: THREE.Vector3;
 }
 
-// Act windows: OPENING 0–0.107 · AWAKENING 0.107–0.24 · EVIDENCE 0.24–0.427 ·
-// OPPOSITION 0.427–0.613 · WEIGHING 0.613–0.773 · REVELATION 0.773–0.92 · FINALE 0.92–1
+// Act windows: OPENING 0–0.0933 · AWAKENING 0.0933–0.24 · EVIDENCE 0.24–0.4133 ·
+// OPPOSITION 0.4133–0.6 · WEIGHING 0.6–0.76 · REVELATION 0.76–0.92 · FINALE 0.92–1
 const CAMERA_TRAJECTORY: TrajectoryKey[] = [
-  // OPENING (0–0.8 s): The Void — high above, quick descent into darkness
-  { p: 0.0, pos: new THREE.Vector3(0, 8.5, 19), look: new THREE.Vector3(0, -2, -8) },
-  { p: 0.05, pos: new THREE.Vector3(0.2, 5.5, 13.5), look: new THREE.Vector3(0, -1, -5) },
-  { p: 0.107, pos: new THREE.Vector3(0, 3.2, 9.5), look: new THREE.Vector3(0, -0.3, -4) },
+  // OPENING (0–0.7 s): the arrival — monumental gate and colonnade silence,
+  // framed above the dais so the chamber itself stays concealed; the camera
+  // is already descending while a copper light streak solves the mystery.
+  { p: 0.0, pos: new THREE.Vector3(2.7, 7.3, 18.4), look: new THREE.Vector3(0, 3.4, -15) },
+  { p: 0.0466, pos: new THREE.Vector3(1.7, 5.9, 14.8), look: new THREE.Vector3(0, 2.2, -13) },
+  { p: 0.0933, pos: new THREE.Vector3(0.5, 3.9, 10.4), look: new THREE.Vector3(0, 0.7, -8) },
 
-  // AWAKENING (0.8–1.8 s): camera finds the central structure as it rises
+  // AWAKENING (0.7–1.8 s): descend to the claim rising on the dais
   { p: 0.17, pos: new THREE.Vector3(0, 2.0, 7.0), look: new THREE.Vector3(0, 0.2, -3.5) },
   { p: 0.24, pos: new THREE.Vector3(0, 1.5, 5.8), look: new THREE.Vector3(0, 0.3, -3.5) },
 
-  // EVIDENCE (1.8–3.2 s): reframing orbit synced to fragment arrival
+  // EVIDENCE (1.8–3.1 s): reframing orbit synced to fragment arrival
   { p: 0.32, pos: new THREE.Vector3(0.7, 1.3, 5.4), look: new THREE.Vector3(0, 0.35, -3.5) },
-  { p: 0.42, pos: new THREE.Vector3(-0.5, 1.1, 5.0), look: new THREE.Vector3(0, 0.3, -3.5) },
+  { p: 0.4133, pos: new THREE.Vector3(-0.5, 1.1, 5.0), look: new THREE.Vector3(0, 0.3, -3.5) },
 
-  // OPPOSITION (3.2–4.6 s): tension, off-center framing into the clash
-  { p: 0.5, pos: new THREE.Vector3(-0.8, 0.9, 4.5), look: new THREE.Vector3(0.3, 0.35, -3.5) },
-  { p: 0.61, pos: new THREE.Vector3(0.4, 0.9, 4.2), look: new THREE.Vector3(0, 0.3, -3.5) },
+  // OPPOSITION (3.1–4.5 s): tension, off-center framing into the clash
+  { p: 0.5, pos: new THREE.Vector3(-0.8, 0.9, 4.5), look: new THREE.Vector3(0.35, 0.4, -3.5) },
+  { p: 0.6, pos: new THREE.Vector3(0.4, 0.9, 4.2), look: new THREE.Vector3(0, 0.3, -3.5) },
 
-  // WEIGHING (4.6–5.8 s): pull back for the full mechanism settling
+  // WEIGHING (4.5–5.7 s): pull back for the full mechanism settling
   { p: 0.7, pos: new THREE.Vector3(0, 1.4, 5.6), look: new THREE.Vector3(0, 0.5, -3.5) },
-  { p: 0.77, pos: new THREE.Vector3(0, 1.25, 4.9), look: new THREE.Vector3(0, 0.55, -5) },
+  { p: 0.755, pos: new THREE.Vector3(0, 1.25, 4.9), look: new THREE.Vector3(0, 0.55, -5) },
 
-  // REVELATION (5.8–6.9 s): advance toward the gate as it releases
+  // REVELATION (5.7–6.9 s): advance toward the gate as it releases
   { p: 0.86, pos: new THREE.Vector3(0, 1.1, 2.6), look: new THREE.Vector3(0, 1.0, -12) },
   { p: 0.92, pos: new THREE.Vector3(0, 0.95, 0.2), look: new THREE.Vector3(0, 1.2, -18) },
 
@@ -67,7 +69,7 @@ function CinematicCameraRig({ cinematicState }: { cinematicState: CinematicState
   const breathRef = useRef(0);
 
   useFrame((state, delta) => {
-    const { progress, isEntering, isInteracting, interactionTarget, act } = cinematicState;
+    const { progress, isEntering, isInteracting, interactionTarget } = cinematicState;
     const cp = Math.max(0, Math.min(1, progress));
 
     // ── Find trajectory segment ──────────────────────────────────────
@@ -98,19 +100,19 @@ function CinematicCameraRig({ cinematicState }: { cinematicState: CinematicState
           targetLook.set(0, 0.35, -3.5);
           break;
         case 'supporting':
-          // Focus on supporting artifact (left side)
-          targetPos.set(-0.4, 1.1, 4.2);
-          targetLook.set(-1.2, 0.6, -3.3);
+          // Corroborant struts dock left of the claim
+          targetPos.set(-0.35, 1.05, 4.15);
+          targetLook.set(-1.0, 0.55, -3.4);
           break;
         case 'contradictory':
-          // Focus on contradictory artifact (right side)
-          targetPos.set(0.6, 1.1, 4.2);
-          targetLook.set(1.2, 0.6, -3.3);
+          // Dissent shard holds apart to the upper right
+          targetPos.set(0.7, 1.35, 4.15);
+          targetLook.set(1.4, 1.1, -3.3);
           break;
         case 'incomplete':
-          // Focus on incomplete artifact (above)
-          targetPos.set(0, 1.5, 4.0);
-          targetLook.set(0, 1.7, -3.85);
+          // Veiled record floats above-left, unresolved
+          targetPos.set(-0.35, 1.7, 4.2);
+          targetLook.set(-1.05, 1.65, -3.4);
           break;
       }
     }
@@ -128,10 +130,10 @@ function CinematicCameraRig({ cinematicState }: { cinematicState: CinematicState
     const my = state.pointer.y * pyFactor;
 
     // ── Opposition impact rumble ─────────────────────────────────────
-    // Clash window: 4.0–4.6 s on the master timeline (progress 0.53–0.613)
+    // Contact window: 4.24–4.61 s on the master timeline (progress 0.53–0.615)
     let sx = 0,
       sy = 0;
-    const isClash = act === NarrativeAct.OPPOSITION && cp >= 0.53 && cp <= 0.613;
+    const isClash = cp >= 0.53 && cp <= 0.615;
     if (isClash) {
       impactRumbleRef.current = THREE.MathUtils.damp(impactRumbleRef.current, 0.04, 10, delta);
       sx = Math.sin(state.clock.elapsedTime * 55) * 0.5 * impactRumbleRef.current;
@@ -153,7 +155,7 @@ function CinematicCameraRig({ cinematicState }: { cinematicState: CinematicState
     }
 
     // ── Damping speed ────────────────────────────────────────────────
-    // The 0.8 s descent and later CTA window need tighter tracking than the
+    // The 0.7 s arrival and later CTA window need tighter tracking than the
     // old 12 s opening; higher damping gain keeps the camera glued to the
     // trajectory while still smoothing micro-jitter.
     const speed = isInteracting ? 2.4 : 3.2;
@@ -191,14 +193,14 @@ function SceneLighting({ progress, act }: { progress: number; act: NarrativeAct 
 
   useFrame((_, delta) => {
     // Windows remapped to the 7.5 s master timeline (see CinematicEngine).
-    // Descent ends at 0.107; awakening ramp by 0.24; tension dip through
-    // opposition/revelation (0.613–0.92); brighten for the finale.
+    // Arrival ends at 0.0933; awakening ramp by 0.24; clarity dip in the
+    // gate act (0.76–0.92); brighten for the finale.
     const tAmbient =
-      progress < 0.05
+      progress < 0.0466
         ? 0.04
         : progress < 0.24
-          ? 0.04 + (progress - 0.05) * 1.45
-          : progress < 0.77
+          ? 0.04 + (progress - 0.0466) * 1.56
+          : progress < 0.76
             ? 0.35
             : progress < 0.92
               ? 0.28
@@ -214,11 +216,11 @@ function SceneLighting({ progress, act }: { progress: number; act: NarrativeAct 
     }
 
     const tSpot =
-      progress < 0.05
+      progress < 0.0466
         ? 0.15
         : progress < 0.24
-          ? 0.15 + (progress - 0.05) * 17
-          : progress < 0.77
+          ? 0.15 + (progress - 0.0466) * 18.2
+          : progress < 0.76
             ? 4.0
             : progress < 0.92
               ? 5.0
@@ -236,7 +238,7 @@ function SceneLighting({ progress, act }: { progress: number; act: NarrativeAct 
         ? 3.0
         : progress < 0.24
           ? 1.0
-          : progress < 0.77
+          : progress < 0.76
             ? 2.5
             : 1.5;
 
@@ -318,7 +320,7 @@ export const TribunalCanvas: React.FC<TribunalCanvasProps> = ({
       aria-label="3D Interactive Experience of Holy Trial"
     >
       <Canvas
-        camera={{ position: [0, 10, 22], fov: 46 }}
+        camera={{ position: [2.7, 7.3, 18.4], fov: 46 }}
         dpr={[1, 1.5]}
         gl={{
           antialias: true,
@@ -326,6 +328,12 @@ export const TribunalCanvas: React.FC<TribunalCanvasProps> = ({
           powerPreference: 'high-performance',
           toneMapping: THREE.ACESFilmicToneMapping,
           toneMappingExposure: 1.05,
+        }}
+        // Warm-up: compile all materials/programs before the first visible
+        // frame so the opening intent is not compromised by shader stutter
+        // (Technique: Trionn case study, Codrops 2026-07).
+        onCreated={({ gl, scene, camera }) => {
+          gl.compile(scene, camera);
         }}
       >
         <color attach="background" args={[canonicalColors.basaltVoid]} />

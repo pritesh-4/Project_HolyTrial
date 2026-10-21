@@ -10,20 +10,20 @@ export const WebGlFallback: React.FC<WebGlFallbackProps> = ({
   isEntering = false,
 }) => {
   // Master-timeline windows (7.5 s, see CinematicEngine):
-  // Gates part during revelation (0.78–0.92); opposition blade advances
-  // 0.47–0.8; evidence docks 0.26–0.43; impact flash at the clash 0.5–0.613.
+  // Gates part 0.8–0.92 (after the lock bolts); the opposition wedge advances
+  // 0.433–0.6 and strikes at 0.565–0.615; evidence docks 0.26–0.4.
   // Gate separation factor in the revelation/finale window
-  const gateOpenPx = isEntering ? 80 : progress >= 0.78 ? ((progress - 0.78) / 0.14) * 65 : 0;
-  // Opposition blade advance through opposition → weighing
+  const gateOpenPx = isEntering ? 80 : progress >= 0.8 ? ((progress - 0.8) / 0.12) * 65 : 0;
+  // Opposition blade advance through the challenge act
   const bladeT =
-    progress >= 0.47 && progress < 0.8 ? (progress - 0.47) / 0.33 : progress >= 0.8 ? 1 : 0;
+    progress >= 0.433 && progress < 0.6 ? (progress - 0.433) / 0.167 : progress >= 0.6 ? 1 : 0;
   const bladeX = 1100 - bladeT * 320;
   const bladeY = 320 + bladeT * 180;
   // Evidence assembly in the evidence act
   const evidenceT =
-    progress >= 0.26 && progress < 0.8
-      ? Math.min(1, (progress - 0.26) / 0.17)
-      : progress >= 0.8
+    progress >= 0.26 && progress < 0.6
+      ? Math.min(1, (progress - 0.26) / 0.145)
+      : progress >= 0.6
         ? 1
         : 0;
 
@@ -231,7 +231,7 @@ export const WebGlFallback: React.FC<WebGlFallbackProps> = ({
         </g>
 
         {/* Adversarial Opposition Blade (Opposition Act Monolith) */}
-        {progress >= 0.43 && (
+        {progress >= 0.4133 && (
           <g
             transform={`translate(${bladeX - 720}, ${bladeY - 500})`}
             className="transition-transform duration-500"
@@ -242,7 +242,7 @@ export const WebGlFallback: React.FC<WebGlFallbackProps> = ({
               stroke="#B76548"
               strokeWidth="1.5"
             />
-            {progress >= 0.5 && progress <= 0.613 && (
+            {progress >= 0.55 && progress <= 0.615 && (
               <circle
                 cx="700"
                 cy="510"

@@ -1,7 +1,22 @@
+/**
+ * TribunalArchitecture — the dormant tribunal and its environment.
+ *
+ * Story hardware added for "The Trial Awakens":
+ *  - Arrival streak: a motivated copper light descending along the colonnade
+ *    during the opening (the cause the claim eventually answers to).
+ *  - The Arbiter Wheel: the central mechanism of judgment — engages during
+ *    evidence, recoils at the challenge, aligns during weighing, and sends a
+ *    concentrated light line toward the gate during revelation.
+ *  - Gate locks: copper bolts release in a fast readable sequence before the
+ *    gates part; the seam flashes as they let go.
+ *  - The world beyond: a genuine spatial reveal through the opened gate
+ *    (distant arch, colonnade silhouettes, warm haze).
+ */
 import React, { useRef, useMemo } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
-import { canonicalColors } from './SceneMaterials';
+import { canonicalColors, createTribunalMaterials } from './SceneMaterials';
+import { windowT, easedWindow, makeEtchedLine } from './etch';
 
 interface TribunalArchitectureProps {
   progress: number; // 0 to 1
@@ -38,70 +53,58 @@ export const TribunalArchitecture: React.FC<TribunalArchitectureProps> = ({
   const rightGateRef = useRef<THREE.Group>(null);
   const gateLightRef = useRef<THREE.PointLight>(null);
   const motesRef = useRef<THREE.Points>(null);
-
-  const [motePositions, moteScales] = useMemo(() => generateMotes(85), []);
   const copperGlowRef = useRef<THREE.MeshStandardMaterial>(null);
   const shaftMatRef = useRef<THREE.MeshBasicMaterial>(null);
 
+  // ── New story hardware refs ──────────────────────────────────────────
+  const wheelRef = useRef<THREE.Group>(null);
+  const wheelMatARef = useRef<THREE.MeshStandardMaterial>(null);
+  const wheelMatCRef = useRef<THREE.MeshStandardMaterial>(null);
+  const boltRefs = useRef<Array<THREE.Mesh | null>>([null, null, null, null]);
+  const streakRef = useRef<THREE.Mesh>(null);
+  const streakLightRef = useRef<THREE.PointLight>(null);
+
+  const [motePositions, moteScales] = useMemo(() => generateMotes(85), []);
+
+  // Gate seam etched flash line: vertical, at the parting seam (world z -16.85)
+  const seamLine = useMemo(
+    () =>
+      makeEtchedLine(
+        [
+          new THREE.Vector3(0, -2.6, -16.85),
+          new THREE.Vector3(0, 0.6, -16.85),
+          new THREE.Vector3(0, 3.6, -16.85),
+          new THREE.Vector3(0, 6.4, -16.85),
+          new THREE.Vector3(0, 10.2, -16.85),
+        ],
+        { color: canonicalColors.oxidizedCopper, restOpacity: 0, dashSize: 0.5, gapSize: 0.22 }
+      ),
+    []
+  );
+
+  // Light line: wheel → gate (drawn during revelation)
+  const wheelToGateLine = useMemo(
+    () =>
+      makeEtchedLine(
+        [
+          new THREE.Vector3(0, 1.85, -4.6),
+          new THREE.Vector3(0, 2.4, -7.5),
+          new THREE.Vector3(0, 3.1, -11.5),
+          new THREE.Vector3(0, 3.7, -15.5),
+          new THREE.Vector3(0, 3.9, -17.2),
+        ],
+        { color: canonicalColors.ember, restOpacity: 0, dashSize: 0.3, gapSize: 0.14 }
+      ),
+    []
+  );
+
   // Shared PBR Materials
   const materials = useMemo(() => {
-    // Polished obsidian floor with restrained reflectivity
-    const floorMat = new THREE.MeshStandardMaterial({
-      color: new THREE.Color(canonicalColors.obsidian),
-      roughness: 0.2,
-      metalness: 0.8,
-    });
-
-    // Basalt Colonnades
-    const basaltColMat = new THREE.MeshStandardMaterial({
-      color: new THREE.Color('#100F0E'),
-      roughness: 0.86,
-      metalness: 0.15,
-      flatShading: true,
-    });
-
-    // Weathered Stone Dais steps
-    const daisMat = new THREE.MeshStandardMaterial({
-      color: new THREE.Color(canonicalColors.weatheredStone),
-      roughness: 0.72,
-      metalness: 0.22,
-    });
-
-    // Copper Inlay Channels
-    const copperInlayMat = new THREE.MeshStandardMaterial({
-      color: new THREE.Color(canonicalColors.oxidizedCopper),
-      roughness: 0.35,
-      metalness: 0.82,
-    });
-
-    // Colossal Gates (Monumental Weathered Blackstone)
-    const gateMat = new THREE.MeshStandardMaterial({
-      color: new THREE.Color('#0D0D0C'),
-      roughness: 0.68,
-      metalness: 0.3,
-      flatShading: true,
-    });
-
-    // Volumetric Light Cone — responds to story
-    const lightShaftMat = new THREE.MeshBasicMaterial({
-      color: new THREE.Color(canonicalColors.warmBone),
-      transparent: true,
-      opacity: 0.04,
-      side: THREE.DoubleSide,
-      depthWrite: false,
-    });
-
-    return {
-      floorMat,
-      basaltColMat,
-      daisMat,
-      copperInlayMat,
-      gateMat,
-      lightShaftMat,
-    };
+    return createTribunalMaterials();
   }, []);
 
   useFrame((state, delta) => {
+    const p = progress;
     // Mote drifting
     if (motesRef.current) {
       const pos = motesRef.current.geometry.attributes.position.array as Float32Array;
@@ -114,14 +117,91 @@ export const TribunalArchitecture: React.FC<TribunalArchitectureProps> = ({
       motesRef.current.geometry.attributes.position.needsUpdate = true;
     }
 
-    // Portal Gates opening — driven by cinematic state.
-    // gateOpen is set at REVELATION entry (≈5.8 s → p 0.773); the gates part
-    // over the revelation act and are fully open inside the finale (by p 0.92 ≈ 6.9 s).
+    // ── Arrival streak: copper light descends the colonnade (0–0.7 s) ─
+    if (streakRef.current) {
+      const t = easedWindow(p, 0.008, 0.0933);
+      const y = 9 - t * 10;
+      streakRef.current.position.y = y;
+      (streakRef.current.material as THREE.MeshBasicMaterial).opacity =
+        Math.sin(Math.min(1, t) * Math.PI) * 0.85;
+    }
+    if (streakLightRef.current) {
+      const t = easedWindow(p, 0.008, 0.0933);
+      streakLightRef.current.position.y = 9 - t * 10;
+      streakLightRef.current.intensity = Math.sin(Math.min(1, t) * Math.PI) * 3.5;
+    }
+
+    // ── The Arbiter Wheel: engage → recoil → align → send the light ───
+    if (wheelRef.current) {
+      const assembled = easedWindow(p, 0.24, 0.31); // engages with evidence
+      const s = THREE.MathUtils.damp(
+        wheelRef.current.scale.x,
+        Math.max(0.001, assembled),
+        3,
+        delta
+      );
+      wheelRef.current.scale.set(s, s, s);
+
+      const engaged = easedWindow(p, 0.24, 0.5); // spins up through the conflict
+      const settled = easedWindow(p, 0.6, 0.74); // alignment during weighing
+      // Deterministic engage/align: rotation winds up, then unwinds to zero
+      const windUp = engaged * 2.4 * (1 - settled) + settled * 0;
+      wheelRef.current.rotation.z = windUp;
+
+      // Recoil wobble at the challenge impact
+      const wobble = windowT(p, 0.565, 0.62);
+      wheelRef.current.rotation.x =
+        Math.sin(wobble * Math.PI * 2) * 0.05 * Math.sin(wobble * Math.PI);
+    }
+    if (wheelMatARef.current) {
+      const target =
+        (p > 0.24 ? 0.35 : 0) +
+        (p >= 0.6 && p < 0.76 ? 0.55 : 0) + // processing heat while aligning
+        (p >= 0.76 ? windowT(p, 0.76, 0.84) * 1.8 : 0); // revelation charge
+      wheelMatARef.current.emissiveIntensity = THREE.MathUtils.damp(
+        wheelMatARef.current.emissiveIntensity,
+        target,
+        3,
+        delta
+      );
+    }
+    if (wheelMatCRef.current) {
+      const target = p >= 0.76 ? windowT(p, 0.76, 0.84) * 2.2 : 0;
+      wheelMatCRef.current.emissiveIntensity = THREE.MathUtils.damp(
+        wheelMatCRef.current.emissiveIntensity,
+        target,
+        3,
+        delta
+      );
+    }
+
+    // Light line wheel → gate (draws during revelation, folds after)
+    const lineDraw = easedWindow(p, 0.74, 0.83);
+    wheelToGateLine.setReveal(lineDraw);
+    wheelToGateLine.setOpacity(lineDraw > 0 ? 0.85 * (1 - easedWindow(p, 0.86, 0.95)) : 0);
+
+    // Gate seam flash as the locks release
+    const seamT = easedWindow(p, 0.765, 0.83);
+    seamLine.setReveal(seamT);
+    seamLine.setOpacity(seamT > 0 && seamT < 1 ? 0.9 : seamT >= 1 ? 0.35 : 0);
+
+    // ── Gate lock bolts: four sequential releases (0.762–0.83) ─────────
+    boltRefs.current.forEach((bolt, i) => {
+      if (!bolt) return;
+      const release = easedWindow(p, 0.762 + i * 0.014, 0.788 + i * 0.014);
+      const dir = i < 2 ? -1 : 1; // left-gate bolts sink deeper left, right-gate right
+      bolt.position.x = bolt.userData.baseX + dir * release * 0.7;
+      bolt.position.z = bolt.userData.baseZ + release * 0.34;
+      (bolt.material as THREE.MeshStandardMaterial).emissiveIntensity =
+        (1 - release) * 1.6 + release * 0.2;
+    });
+
+    // Portal Gates opening — locks release first, then the monoliths part
     let gateOpenFactor = 0;
     if (isEntering) {
       gateOpenFactor = 1.0;
     } else if (gateOpen) {
-      gateOpenFactor = Math.min(1, (progress - 0.8) / 0.12);
+      gateOpenFactor = Math.min(1, Math.max(0, (p - 0.8) / 0.12));
     }
 
     const openDistance = gateOpenFactor * 3.8;
@@ -144,9 +224,9 @@ export const TribunalArchitecture: React.FC<TribunalArchitectureProps> = ({
       );
     }
 
-    // Gate light radiance — ramps up dramatically as gate opens
+    // Gate light radiance ramps as the gate parts
     if (gateLightRef.current) {
-      const targetIntensity = 0.3 + gateOpenFactor * 8.0;
+      const targetIntensity = 0.3 + gateOpenFactor * 8.0 + seamT * 1.2;
       gateLightRef.current.intensity = THREE.MathUtils.damp(
         gateLightRef.current.intensity,
         targetIntensity,
@@ -158,13 +238,13 @@ export const TribunalArchitecture: React.FC<TribunalArchitectureProps> = ({
     // Progressive copper emissive glow on dais inlays (awakening ramps it in)
     if (copperGlowRef.current) {
       const glowTarget =
-        progress < 0.1
+        p < 0.0933
           ? 0
-          : progress < 0.24
-            ? (progress - 0.1) * 4.3
-            : progress < 0.77
-              ? 0.6 + Math.sin(state.clock.getElapsedTime() * 2) * 0.15
-              : progress < 0.92
+          : p < 0.24
+            ? (p - 0.0933) * 3.9
+            : p < 0.76
+              ? 0.55 + Math.sin(state.clock.getElapsedTime() * 2) * 0.12
+              : p < 0.92
                 ? 0.4
                 : 0.8 + gateOpenFactor * 0.5;
       copperGlowRef.current.emissiveIntensity = THREE.MathUtils.damp(
@@ -175,14 +255,14 @@ export const TribunalArchitecture: React.FC<TribunalArchitectureProps> = ({
       );
     }
 
-    // Light shaft opacity — dim during descent, brightens through awakening
+    // Light shaft — dim during arrival, brightens with the awakening
     if (shaftMatRef.current) {
       const shaftTarget =
-        progress < 0.1
+        p < 0.0933
           ? 0.02
-          : progress < 0.24
-            ? 0.04 + (progress - 0.1) * 0.43
-            : progress < 0.75
+          : p < 0.24
+            ? 0.04 + (p - 0.0933) * 0.4
+            : p < 0.76
               ? 0.1
               : 0.06 + gateOpenFactor * 0.06;
       shaftMatRef.current.opacity = THREE.MathUtils.damp(
@@ -194,37 +274,46 @@ export const TribunalArchitecture: React.FC<TribunalArchitectureProps> = ({
     }
   });
 
+  // Gate-local lock coordinates (each gate box is 3.6 × 14 × 1.2 → face at z 0.6)
+  const boltDefs = {
+    left: [
+      { x: 1.35, y: 1.5, z: 0.78 },
+      { x: 1.35, y: 4.5, z: 0.78 },
+    ],
+    right: [
+      { x: -1.35, y: 1.5, z: 0.78 },
+      { x: -1.35, y: 4.5, z: 0.78 },
+    ],
+  };
+
   return (
     <group>
       {/* Polished Obsidian Floor */}
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -2.1, -4]} receiveShadow>
         <planeGeometry args={[70, 70]} />
-        <primitive object={materials.floorMat} attach="material" />
+        <primitive object={materials.obsidianPolished} attach="material" />
       </mesh>
 
       {/* Embedded Copper Perspective Lines on Floor */}
       {[-3, -1, 1, 3].map((x, i) => (
         <mesh key={i} rotation={[-Math.PI / 2, 0, 0]} position={[x * 1.5, -2.08, -6]}>
           <planeGeometry args={[0.04, 32]} />
-          <primitive object={materials.copperInlayMat} attach="material" />
+          <primitive object={materials.oxidizedCopper} attach="material" />
         </mesh>
       ))}
 
       {/* Stepped Megalithic Dais */}
       <group position={[0, -1.9, -3.5]}>
-        {/* Tier 1 - Wide Basalt Platform */}
         <mesh position={[0, 0, 0]} receiveShadow>
           <boxGeometry args={[7.2, 0.35, 7.2]} />
-          <primitive object={materials.daisMat} attach="material" />
+          <primitive object={materials.basaltRough} attach="material" />
         </mesh>
-
-        {/* Tier 2 - Upper Obsidian Plinth */}
         <mesh position={[0, 0.3, 0]} receiveShadow>
           <boxGeometry args={[4.8, 0.3, 4.8]} />
-          <primitive object={materials.floorMat} attach="material" />
+          <primitive object={materials.obsidianPolished} attach="material" />
         </mesh>
 
-        {/* Sacred Copper Inlay Ring — glows progressively */}
+        {/* Sacred Copper Inlay Ring — glows with the story */}
         <mesh position={[0, 0.46, 0]} rotation={[-Math.PI / 2, 0, 0]}>
           <ringGeometry args={[1.6, 1.66, 48]} />
           <meshStandardMaterial
@@ -236,10 +325,9 @@ export const TribunalArchitecture: React.FC<TribunalArchitectureProps> = ({
             metalness={0.82}
           />
         </mesh>
-
         <mesh position={[0, 0.465, 0]} rotation={[-Math.PI / 2, 0, 0]}>
           <ringGeometry args={[0.9, 0.94, 32]} />
-          <primitive object={materials.copperInlayMat} attach="material" />
+          <primitive object={materials.oxidizedCopper} attach="material" />
         </mesh>
       </group>
 
@@ -251,12 +339,11 @@ export const TribunalArchitecture: React.FC<TribunalArchitectureProps> = ({
           <group key={`left-col-${idx}`} position={[x, h / 2 - 2.1, z]}>
             <mesh castShadow receiveShadow>
               <cylinderGeometry args={[1.1, 1.3, h, 6]} />
-              <primitive object={materials.basaltColMat} attach="material" />
+              <primitive object={materials.basaltRough} attach="material" />
             </mesh>
-            {/* Weathered copper band near column base */}
             <mesh position={[0, -h / 2 + 1.2, 0]}>
               <cylinderGeometry args={[1.25, 1.27, 0.1, 6]} />
-              <primitive object={materials.copperInlayMat} attach="material" />
+              <primitive object={materials.oxidizedCopper} attach="material" />
             </mesh>
           </group>
         );
@@ -270,48 +357,164 @@ export const TribunalArchitecture: React.FC<TribunalArchitectureProps> = ({
           <group key={`right-col-${idx}`} position={[x, h / 2 - 2.1, z]}>
             <mesh castShadow receiveShadow>
               <cylinderGeometry args={[1.1, 1.3, h, 6]} />
-              <primitive object={materials.basaltColMat} attach="material" />
+              <primitive object={materials.basaltRough} attach="material" />
             </mesh>
             <mesh position={[0, -h / 2 + 1.2, 0]}>
               <cylinderGeometry args={[1.25, 1.27, 0.1, 6]} />
-              <primitive object={materials.copperInlayMat} attach="material" />
+              <primitive object={materials.oxidizedCopper} attach="material" />
             </mesh>
           </group>
         );
       })}
 
-      {/* The Monumental Inner Gate (slides open in Chapter IV) */}
+      {/* ── The Arbiter Wheel — central mechanism of judgment ── */}
+      <group ref={wheelRef} position={[0, 2.7, -4.6]} scale={[0.001, 0.001, 0.001]}>
+        <mesh>
+          <torusGeometry args={[1.5, 0.05, 10, 64]} />
+          <meshStandardMaterial
+            ref={wheelMatARef}
+            color={canonicalColors.obsidian}
+            emissive={new THREE.Color(canonicalColors.oxidizedCopper)}
+            emissiveIntensity={0}
+            roughness={0.3}
+            metalness={0.85}
+            flatShading
+          />
+        </mesh>
+        <mesh>
+          <torusGeometry args={[1.14, 0.03, 8, 48]} />
+          <primitive object={materials.oxidizedCopper} attach="material" />
+        </mesh>
+        <mesh>
+          <torusGeometry args={[0.82, 0.04, 8, 48]} />
+          <meshStandardMaterial
+            ref={wheelMatCRef}
+            color={canonicalColors.obsidian}
+            emissive={new THREE.Color(canonicalColors.ember)}
+            emissiveIntensity={0}
+            roughness={0.3}
+            metalness={0.85}
+          />
+        </mesh>
+        {/* Spokes — the machine's read of the case */}
+        {[0, 1, 2, 3, 4, 5].map((i) => (
+          <mesh
+            key={i}
+            position={[
+              Math.cos((i / 6) * Math.PI * 2) * 1.14,
+              Math.sin((i / 6) * Math.PI * 2) * 1.14,
+              0,
+            ]}
+            rotation={[0, 0, (i / 6) * Math.PI * 2 + Math.PI / 2]}
+          >
+            <boxGeometry args={[0.62, 0.07, 0.07]} />
+            <meshStandardMaterial
+              color={canonicalColors.warmBone}
+              roughness={0.55}
+              metalness={0.15}
+            />
+          </mesh>
+        ))}
+        {/* Hub */}
+        <mesh>
+          <cylinderGeometry args={[0.18, 0.18, 0.3, 6]} />
+          <primitive object={materials.oxidizedCopper} attach="material" />
+        </mesh>
+      </group>
+
+      {/* ── Arrival streak: copper light descending the colonnade ── */}
+      <mesh ref={streakRef} position={[-4.85, 9, -6]} rotation={[0.28, 0, 0]}>
+        <planeGeometry args={[0.14, 22]} />
+        <meshBasicMaterial
+          color={canonicalColors.oxidizedCopper}
+          transparent
+          opacity={0}
+          blending={THREE.AdditiveBlending}
+          depthWrite={false}
+        />
+      </mesh>
+      <pointLight
+        ref={streakLightRef}
+        position={[-4.85, 9, -4.6]}
+        color={canonicalColors.oxidizedCopper}
+        intensity={0}
+        distance={14}
+      />
+
+      {/* Etched lines: gate seam flash + wheel→gate light */}
+      <primitive object={seamLine.object} />
+      <primitive object={wheelToGateLine.object} />
+
+      {/* ── The Monumental Inner Gate ── */}
       <group position={[0, 3.8, -17.5]}>
         {/* Left Colossal Portal Monolith */}
         <group ref={leftGateRef} position={[-1.9, 0, 0]}>
           <mesh castShadow receiveShadow>
             <boxGeometry args={[3.6, 14, 1.2]} />
-            <primitive object={materials.gateMat} attach="material" />
+            <primitive object={materials.basaltRough} attach="material" />
           </mesh>
-          {/* Vertical copper glyph seam */}
           <mesh position={[1.75, 0, 0.62]}>
             <planeGeometry args={[0.06, 12]} />
-            <primitive object={materials.copperInlayMat} attach="material" />
+            <primitive object={materials.oxidizedCopper} attach="material" />
           </mesh>
+          {/* Lock bolts — left gate pair, near the seam (slide in on release) */}
+          {[0, 1].map((slot, j) => (
+            <mesh
+              key={`bolt-${slot}`}
+              ref={(m) => {
+                boltRefs.current[slot] = m;
+              }}
+              position={[boltDefs.left[j].x, boltDefs.left[j].y, boltDefs.left[j].z]}
+              userData={{ baseX: boltDefs.left[j].x, baseZ: boltDefs.left[j].z }}
+            >
+              <cylinderGeometry args={[0.09, 0.11, 0.9, 6]} />
+              <meshStandardMaterial
+                color={canonicalColors.oxidizedCopper}
+                emissive={new THREE.Color(canonicalColors.oxidizedCopper)}
+                emissiveIntensity={1.6}
+                roughness={0.35}
+                metalness={0.8}
+              />
+            </mesh>
+          ))}
         </group>
 
         {/* Right Colossal Portal Monolith */}
         <group ref={rightGateRef} position={[1.9, 0, 0]}>
           <mesh castShadow receiveShadow>
             <boxGeometry args={[3.6, 14, 1.2]} />
-            <primitive object={materials.gateMat} attach="material" />
+            <primitive object={materials.basaltRough} attach="material" />
           </mesh>
-          {/* Vertical copper glyph seam */}
           <mesh position={[-1.75, 0, 0.62]}>
             <planeGeometry args={[0.06, 12]} />
-            <primitive object={materials.copperInlayMat} attach="material" />
+            <primitive object={materials.oxidizedCopper} attach="material" />
           </mesh>
+          {/* Lock bolts — right gate pair, near the seam */}
+          {[2, 3].map((slot, j) => (
+            <mesh
+              key={`bolt-${slot}`}
+              ref={(m) => {
+                boltRefs.current[slot] = m;
+              }}
+              position={[boltDefs.right[j].x, boltDefs.right[j].y, boltDefs.right[j].z]}
+              userData={{ baseX: boltDefs.right[j].x, baseZ: boltDefs.right[j].z }}
+            >
+              <cylinderGeometry args={[0.09, 0.11, 0.9, 6]} />
+              <meshStandardMaterial
+                color={canonicalColors.oxidizedCopper}
+                emissive={new THREE.Color(canonicalColors.oxidizedCopper)}
+                emissiveIntensity={1.6}
+                roughness={0.35}
+                metalness={0.8}
+              />
+            </mesh>
+          ))}
         </group>
 
         {/* Gate Arch Lintel */}
         <mesh position={[0, 7.6, 0]}>
           <boxGeometry args={[11, 1.8, 1.8]} />
-          <primitive object={materials.daisMat} attach="material" />
+          <primitive object={materials.weatheredStone} attach="material" />
         </mesh>
 
         {/* Luminous Inner Court Light behind the Gate */}
@@ -323,6 +526,54 @@ export const TribunalArchitecture: React.FC<TribunalArchitectureProps> = ({
           distance={25}
           decay={1.8}
         />
+      </group>
+
+      {/* ── The World Beyond the Gate — the spatial reveal ── */}
+      <group>
+        {/* Distant luminous haze — visible only through the opened gate */}
+        <mesh position={[0, 4.5, -26]} rotation={[0, 0, 0]}>
+          <circleGeometry args={[9.5, 32]} />
+          <meshBasicMaterial
+            color={canonicalColors.ember}
+            transparent
+            opacity={0.055}
+            blending={THREE.AdditiveBlending}
+            depthWrite={false}
+          />
+        </mesh>
+        {/* Distant arch silhouette */}
+        <mesh position={[0, 0.4, -26]} rotation={[0, 0, 0]}>
+          <torusGeometry args={[5.4, 0.16, 8, 32, Math.PI]} />
+          <meshStandardMaterial
+            color={canonicalColors.obsidian}
+            emissive={new THREE.Color(canonicalColors.oxidizedCopper)}
+            emissiveIntensity={0.22}
+            roughness={0.7}
+            metalness={0.3}
+          />
+        </mesh>
+        {/* Far colonnade silhouettes */}
+        {[-6.2, -5.4, 5.4, 6.2].map((x, i) => (
+          <mesh key={`far-col-${i}`} position={[x, 3.4, -25]} castShadow={false}>
+            <cylinderGeometry args={[0.8, 0.95, 11, 6]} />
+            <meshStandardMaterial
+              color={canonicalColors.obsidian}
+              roughness={0.9}
+              metalness={0.1}
+              flatShading
+            />
+          </mesh>
+        ))}
+        {/* Distant floor */}
+        <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -2.05, -24]}>
+          <planeGeometry args={[30, 18]} />
+          <meshStandardMaterial
+            color="#241D18"
+            emissive={new THREE.Color(canonicalColors.ember)}
+            emissiveIntensity={0.05}
+            roughness={0.75}
+          />
+        </mesh>
       </group>
 
       {/* Volumetric Light Shaft — responsive to story */}

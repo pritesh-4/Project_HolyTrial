@@ -93,17 +93,20 @@ export interface CinematicState {
 }
 
 // ── Master timeline budget (seconds) — total = 7.5 ─────────────────────
+// Choreography: 0.0–0.7 The Impact of Arrival · 0.7–1.8 The Claim ·
+// 1.8–3.1 Evidence Emerges · 3.1–4.5 The Challenge · 4.5–5.7 The Tribunal
+// Responds · 5.7–6.9 The Gate · 6.9–7.5 The Invitation (CTA).
 const CINEMATIC_TOTAL_SECONDS = 7.5;
 const CTA_REVEAL_AT = 0.15; // seconds into FINALE (≈7.05 s elapsed)
 
 const ACT_DURATIONS: Partial<Record<NarrativeAct, number>> = {
-  [NarrativeAct.OPENING]: 0.8, // 0.0–0.8
-  [NarrativeAct.AWAKENING]: 1.0, // 0.8–1.8
-  [NarrativeAct.EVIDENCE]: 1.4, // 1.8–3.2
-  [NarrativeAct.OPPOSITION]: 1.4, // 3.2–4.6
-  [NarrativeAct.WEIGHING]: 1.2, // 4.6–5.8
-  [NarrativeAct.REVELATION]: 1.1, // 5.8–6.9
-  [NarrativeAct.FINALE]: 0.6, // 6.9–7.5
+  [NarrativeAct.OPENING]: 0.7, // 0.0–0.7  arrival impact
+  [NarrativeAct.AWAKENING]: 1.1, // 0.7–1.8 claim awakens the machine
+  [NarrativeAct.EVIDENCE]: 1.3, // 1.8–3.1 evidence emerges & relates
+  [NarrativeAct.OPPOSITION]: 1.4, // 3.1–4.5 the challenge strikes
+  [NarrativeAct.WEIGHING]: 1.2, // 4.5–5.7 tribunal responds
+  [NarrativeAct.REVELATION]: 1.2, // 5.7–6.9 gate releases & opens
+  [NarrativeAct.FINALE]: 0.6, // 6.9–7.5 invitation / stable idle
 };
 
 // ── Interaction Windows (acts during which an interaction is available) ─
@@ -150,12 +153,12 @@ const crossExamWindow = INTERACTION_WINDOWS.decision;
 // beats synchronized with the camera trajectory.
 const ACT_PROGRESS_RANGES: Record<NarrativeAct, [number, number]> = {
   [NarrativeAct.INITIALIZING]: [0.0, 0.0],
-  [NarrativeAct.OPENING]: [0.0, 0.107], // 0–0.8 s
-  [NarrativeAct.AWAKENING]: [0.107, 0.24], // 0.8–1.8
-  [NarrativeAct.EVIDENCE]: [0.24, 0.427], // 1.8–3.2
-  [NarrativeAct.OPPOSITION]: [0.427, 0.613], // 3.2–4.6
-  [NarrativeAct.WEIGHING]: [0.613, 0.773], // 4.6–5.8
-  [NarrativeAct.REVELATION]: [0.773, 0.92], // 5.8–6.9
+  [NarrativeAct.OPENING]: [0.0, 0.0933], // 0–0.7 s
+  [NarrativeAct.AWAKENING]: [0.0933, 0.24], // 0.7–1.8
+  [NarrativeAct.EVIDENCE]: [0.24, 0.4133], // 1.8–3.1
+  [NarrativeAct.OPPOSITION]: [0.4133, 0.6], // 3.1–4.5
+  [NarrativeAct.WEIGHING]: [0.6, 0.76], // 4.5–5.7
+  [NarrativeAct.REVELATION]: [0.76, 0.92], // 5.7–6.9
   [NarrativeAct.FINALE]: [0.92, 1.0], // 6.9–7.5
   [NarrativeAct.COMPLETED]: [1.0, 1.0],
   // Interaction-mode labels (not reached by the timeline)
@@ -347,13 +350,13 @@ export class CinematicEngine {
     this.state.progress = range[0] + (range[1] - range[0]) * s;
   }
 
-  // ── Title Opacity — HOLY TRIAL emerges through the descent ─────────
-  // Window: progress 0.14–0.28 → ≈1.05 s–2.1 s elapsed
+  // ── Title Opacity — HOLY TRIAL appears with the arrival impact ──────
+  // Window: progress 0.06–0.20 → ≈0.45 s–1.5 s elapsed (arrival → claim)
   private updateTitle(): void {
     const p = this.state.progress;
-    const T_IN = 0.14,
-      T_PEAK = 0.2,
-      T_OUT = 0.28;
+    const T_IN = 0.06,
+      T_PEAK = 0.1,
+      T_OUT = 0.2;
     if (p >= T_IN && p <= T_OUT) {
       this.state.titleOpacity =
         p < T_PEAK ? (p - T_IN) / (T_PEAK - T_IN) : 1 - (p - T_PEAK) / (T_OUT - T_PEAK);
@@ -384,11 +387,10 @@ export class CinematicEngine {
 
     switch (act) {
       case NarrativeAct.AWAKENING:
-        this.state.pendingAudioEvents.push('revealTexture');
+        this.state.pendingAudioEvents.push('revealTexture', 'claimEstablished');
         break;
       case NarrativeAct.EVIDENCE:
-        // Both beats fire as the artifacts approach (dock sound on arrival)
-        this.state.pendingAudioEvents.push('claimEstablished', 'evidenceDock');
+        this.state.pendingAudioEvents.push('evidenceDock');
         break;
       case NarrativeAct.OPPOSITION:
         this.state.pendingAudioEvents.push('oppositionImpact');
