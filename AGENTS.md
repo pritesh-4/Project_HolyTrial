@@ -2,13 +2,13 @@
 
 ## Project
 
-HolyTrial ("Hype Court") — immersive courtroom-simulation SPA. **Frontend-only today**: React 19 + Vite 8 + TS, React Three Fiber/Three, GSAP (camera timelines) + Motion (micro-interactions), Tailwind v4. Product spec lives in `.gsd/SPEC.md` (status: FINALIZED).
+HolyTrial ("Hype Court") — immersive courtroom-simulation SPA. **Frontend-only today**: React 19 + Vite 8 + TS, React Three Fiber/Three, GSAP (camera timelines) + Motion (micro-interactions), Tailwind v4. Cross-session status lives in `pending.md`.
 
-Rules of engagement: `PROJECT_RULES.md` is the canonical GSD ruleset; `.gsd/STATE.md` is cross-session memory (read it first — it records current phase, next steps, and scope limits). `.gsd/ARCHITECTURE.md` is **stale** (pre-implementation snapshot); don't trust it.
+Rules of engagement: `PROJECT_RULES.md` is the canonical ruleset; `pending.md` is the audit/status ledger (read it first — it records what landed, open residuals, and verification status). GSD scaffolding (`.gsd/`, `.agents/`, `.agent/`, `.gemini/`, `GSD-STYLE.md`) was intentionally removed on 2026-10-21 — do not restore it.
 
 ## Scope freeze
 
-Per `.gsd/STATE.md` (2026-10-17): do **not** implement Tavily Search, NVIDIA NIM, or the trial/courtroom interfaces until explicitly authorized. Current milestone is the mocked UI flow (Landing → Case Dossier).
+Standing scope limit (set 2026-10-17): do **not** implement Tavily Search, NVIDIA NIM, or the trial/courtroom interfaces until explicitly authorized. Current milestone is the mocked UI flow (Landing → Case Dossier).
 
 ## Commands
 
