@@ -1,30 +1,52 @@
 import React from 'react';
 
 interface WebGlFallbackProps {
+  progress?: number;
   isEntering?: boolean;
 }
 
-export const WebGlFallback: React.FC<WebGlFallbackProps> = ({ isEntering = false }) => {
+export const WebGlFallback: React.FC<WebGlFallbackProps> = ({
+  progress = 0.2,
+  isEntering = false,
+}) => {
+  // Master-timeline windows (7.5 s, see CinematicEngine):
+  // Gates part during revelation (0.78–0.92); opposition blade advances
+  // 0.47–0.8; evidence docks 0.26–0.43; impact flash at the clash 0.5–0.613.
+  // Gate separation factor in the revelation/finale window
+  const gateOpenPx = isEntering ? 80 : progress >= 0.78 ? ((progress - 0.78) / 0.14) * 65 : 0;
+  // Opposition blade advance through opposition → weighing
+  const bladeT =
+    progress >= 0.47 && progress < 0.8 ? (progress - 0.47) / 0.33 : progress >= 0.8 ? 1 : 0;
+  const bladeX = 1100 - bladeT * 320;
+  const bladeY = 320 + bladeT * 180;
+  // Evidence assembly in the evidence act
+  const evidenceT =
+    progress >= 0.26 && progress < 0.8
+      ? Math.min(1, (progress - 0.26) / 0.17)
+      : progress >= 0.8
+        ? 1
+        : 0;
+
   return (
     <div
-      className="pointer-events-none absolute inset-0 z-0 h-full w-full overflow-hidden bg-[#0C0D11] select-none"
-      aria-label="2D Atmospheric Backdrop of the Obsidian Tribunal"
+      className="pointer-events-none absolute inset-0 z-0 h-full w-full overflow-hidden bg-[#090909] select-none"
+      aria-label="Atmospheric Backdrop of Holy Trial"
       role="img"
     >
-      {/* Background subterranean depth gradient */}
-      <div className="absolute inset-0 bg-radial from-[#181B26] via-[#0E1017] to-[#0A0B0F] opacity-90" />
+      {/* Background subterranean depth radial gradient */}
+      <div className="absolute inset-0 bg-radial from-[#151413] via-[#090909] to-[#050505] opacity-95" />
 
       {/* Central Volumetric Light Beam */}
       <div
-        className={`absolute top-0 left-1/2 h-full w-72 origin-top -translate-x-1/2 transform bg-gradient-to-b from-[#B9975B]/25 via-[#B9975B]/10 to-transparent blur-2xl transition-transform duration-1000 md:w-96 ${
-          isEntering ? 'scale-125 opacity-70' : 'animate-shaft-drift'
+        className={`absolute top-0 left-1/2 h-full w-80 origin-top -translate-x-1/2 transform bg-gradient-to-b from-[#E8E0D1]/20 via-[#B76548]/10 to-transparent blur-3xl transition-transform duration-1000 md:w-[480px] ${
+          isEntering ? 'scale-125 opacity-80' : 'animate-shaft-drift'
         }`}
       />
 
-      {/* SVG Architectural Silhouettes */}
+      {/* Authored SVG Architectural Chamber */}
       <svg
         className={`absolute inset-0 h-full w-full object-cover transition-transform duration-1000 ease-out ${
-          isEntering ? '-translate-y-6 scale-110' : 'scale-100'
+          isEntering ? '-translate-y-8 scale-110' : 'scale-100'
         }`}
         preserveAspectRatio="xMidYMid slice"
         viewBox="0 0 1440 900"
@@ -33,155 +55,232 @@ export const WebGlFallback: React.FC<WebGlFallbackProps> = ({ isEntering = false
       >
         <defs>
           <linearGradient id="pillarLeftGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-            <stop offset="0%" stopColor="#08090C" />
-            <stop offset="85%" stopColor="#161822" />
-            <stop offset="100%" stopColor="#252834" />
+            <stop offset="0%" stopColor="#090909" />
+            <stop offset="85%" stopColor="#151413" />
+            <stop offset="100%" stopColor="#292521" />
           </linearGradient>
           <linearGradient id="pillarRightGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-            <stop offset="0%" stopColor="#252834" />
-            <stop offset="15%" stopColor="#161822" />
-            <stop offset="100%" stopColor="#08090C" />
+            <stop offset="0%" stopColor="#292521" />
+            <stop offset="15%" stopColor="#151413" />
+            <stop offset="100%" stopColor="#090909" />
           </linearGradient>
           <linearGradient id="daisGrad" x1="0%" y1="0%" x2="0%" y2="100%">
-            <stop offset="0%" stopColor="#252834" />
-            <stop offset="50%" stopColor="#171922" />
-            <stop offset="100%" stopColor="#0D0E13" />
+            <stop offset="0%" stopColor="#292521" />
+            <stop offset="50%" stopColor="#151413" />
+            <stop offset="100%" stopColor="#090909" />
           </linearGradient>
           <linearGradient id="floorGrad" x1="0%" y1="0%" x2="0%" y2="100%">
-            <stop offset="0%" stopColor="#181A22" />
-            <stop offset="40%" stopColor="#0D0E13" />
-            <stop offset="100%" stopColor="#060709" />
+            <stop offset="0%" stopColor="#151413" />
+            <stop offset="40%" stopColor="#0D0D0C" />
+            <stop offset="100%" stopColor="#050505" />
           </linearGradient>
+          <radialGradient id="portalGlow" cx="50%" cy="50%" r="50%">
+            <stop offset="0%" stopColor="#F2A16A" stopOpacity="0.5" />
+            <stop offset="60%" stopColor="#B76548" stopOpacity="0.2" />
+            <stop offset="100%" stopColor="#090909" stopOpacity="0" />
+          </radialGradient>
         </defs>
 
-        {/* Far Background Monolith */}
+        {/* Luminous Inner Portal Glow behind Gate */}
+        <circle cx="720" cy="400" r={160 + gateOpenPx * 1.5} fill="url(#portalGlow)" />
+
+        {/* Colossal Inner Gates (monoliths parting in Chapter IV) */}
+        {/* Left Gate Monolith */}
         <rect
-          x="640"
-          y="160"
-          width="160"
-          height="480"
-          fill="#0C0D12"
-          stroke="#B9975B"
+          x={640 - gateOpenPx}
+          y="180"
+          width="76"
+          height="450"
+          fill="#100F0E"
+          stroke="#B76548"
           strokeOpacity="0.3"
-          strokeWidth="1"
+          strokeWidth="1.5"
         />
-        <line
-          x1="720"
-          y1="180"
-          x2="720"
-          y2="620"
-          stroke="#B9975B"
-          strokeOpacity="0.4"
+        {/* Right Gate Monolith */}
+        <rect
+          x={724 + gateOpenPx}
+          y="180"
+          width="76"
+          height="450"
+          fill="#100F0E"
+          stroke="#B76548"
+          strokeOpacity="0.3"
           strokeWidth="1.5"
         />
 
         {/* Chamber Floor */}
-        <polygon points="0,640 1440,640 1440,900 0,900" fill="url(#floorGrad)" />
+        <polygon points="0,630 1440,630 1440,900 0,900" fill="url(#floorGrad)" />
 
-        {/* Floor Inlay Perspective Lines */}
+        {/* Floor Perspective Copper Lines */}
         <line
           x1="720"
-          y1="640"
-          x2="100"
+          y1="630"
+          x2="120"
           y2="900"
-          stroke="#B9975B"
-          strokeOpacity="0.2"
+          stroke="#B76548"
+          strokeOpacity="0.25"
           strokeWidth="1"
         />
         <line
           x1="720"
-          y1="640"
-          x2="1340"
+          y1="630"
+          x2="1320"
           y2="900"
-          stroke="#B9975B"
-          strokeOpacity="0.2"
+          stroke="#B76548"
+          strokeOpacity="0.25"
           strokeWidth="1"
         />
         <line
           x1="720"
-          y1="640"
-          x2="480"
+          y1="630"
+          x2="460"
           y2="900"
-          stroke="#B9975B"
+          stroke="#B76548"
           strokeOpacity="0.15"
           strokeWidth="1"
         />
         <line
           x1="720"
-          y1="640"
-          x2="960"
+          y1="630"
+          x2="980"
           y2="900"
-          stroke="#B9975B"
+          stroke="#B76548"
           strokeOpacity="0.15"
           strokeWidth="1"
         />
 
-        {/* Central Judicial Dais */}
+        {/* Central Megalithic Dais */}
         <polygon
-          points="560,670 880,670 940,730 500,730"
+          points="540,660 900,660 960,730 480,730"
           fill="url(#daisGrad)"
-          stroke="#B9975B"
-          strokeOpacity="0.5"
+          stroke="#B76548"
+          strokeOpacity="0.45"
           strokeWidth="1"
         />
         <polygon
-          points="590,650 850,650 890,670 550,670"
-          fill="#1C1E28"
-          stroke="#B9975B"
-          strokeOpacity="0.4"
+          points="580,640 860,640 890,660 550,660"
+          fill="#1A1816"
+          stroke="#B76548"
+          strokeOpacity="0.3"
           strokeWidth="0.8"
         />
 
-        {/* Dais Sacred Inlay Ring */}
+        {/* Dais Concentric Inlay Rings */}
         <ellipse
           cx="720"
-          cy="695"
-          rx="100"
+          cy="685"
+          rx="110"
           ry="24"
-          stroke="#B9975B"
+          stroke="#B76548"
           strokeWidth="1"
           strokeDasharray="4 4"
-          opacity="0.7"
+          opacity="0.75"
         />
         <ellipse
           cx="720"
-          cy="695"
-          rx="50"
+          cy="685"
+          rx="55"
           ry="12"
-          stroke="#B9975B"
+          stroke="#B76548"
           strokeWidth="1.2"
           opacity="0.9"
         />
 
-        {/* Left Colonnade (Foreground & Midground Pillars) */}
-        <polygon points="0,0 220,0 250,720 0,780" fill="url(#pillarLeftGrad)" />
+        {/* Left Basalt Colonnade */}
+        <polygon points="0,0 200,0 230,710 0,770" fill="url(#pillarLeftGrad)" />
         <polygon
-          points="260,100 370,100 390,660 270,680"
+          points="240,90 350,90 370,650 250,670"
           fill="url(#pillarLeftGrad)"
           opacity="0.85"
         />
         <polygon
-          points="400,200 480,200 495,640 410,650"
+          points="380,190 460,190 475,630 390,640"
           fill="url(#pillarLeftGrad)"
           opacity="0.7"
         />
 
-        {/* Right Colonnade (Foreground & Midground Pillars) */}
-        <polygon points="1220,0 1440,0 1440,780 1190,720" fill="url(#pillarRightGrad)" />
+        {/* Right Basalt Colonnade */}
+        <polygon points="1240,0 1440,0 1440,770 1210,710" fill="url(#pillarRightGrad)" />
         <polygon
-          points="1070,100 1180,100 1170,680 1050,660"
+          points="1090,90 1200,90 1190,670 1070,650"
           fill="url(#pillarRightGrad)"
           opacity="0.85"
         />
         <polygon
-          points="960,200 1040,200 1030,650 945,640"
+          points="980,190 1060,190 1050,640 965,630"
           fill="url(#pillarRightGrad)"
           opacity="0.7"
         />
+
+        {/* Evidence Fragments (Evidence Act Docking) */}
+        <g opacity={progress >= 0.24 ? 1 : 0.2} className="transition-opacity duration-700">
+          {/* Left Evidence Fragment */}
+          <polygon
+            points={`${640 - (1 - evidenceT) * 180},540 ${655 - (1 - evidenceT) * 180},520 ${665 - (1 - evidenceT) * 180},550 ${650 - (1 - evidenceT) * 180},565`}
+            fill="#E8E0D1"
+            stroke="#B76548"
+            strokeWidth="1"
+          />
+          {/* Right Evidence Fragment */}
+          <polygon
+            points={`${800 + (1 - evidenceT) * 180},540 ${815 + (1 - evidenceT) * 180},520 ${825 + (1 - evidenceT) * 180},550 ${810 + (1 - evidenceT) * 180},565`}
+            fill="#E8E0D1"
+            stroke="#B76548"
+            strokeWidth="1"
+          />
+        </g>
+
+        {/* Adversarial Opposition Blade (Opposition Act Monolith) */}
+        {progress >= 0.43 && (
+          <g
+            transform={`translate(${bladeX - 720}, ${bladeY - 500})`}
+            className="transition-transform duration-500"
+          >
+            <polygon
+              points="720,440 760,540 680,540"
+              fill="#E8E0D1"
+              stroke="#B76548"
+              strokeWidth="1.5"
+            />
+            {progress >= 0.5 && progress <= 0.613 && (
+              <circle
+                cx="700"
+                cy="510"
+                r="16"
+                fill="#F2A16A"
+                opacity="0.7"
+                className="animate-ping"
+              />
+            )}
+          </g>
+        )}
+
+        {/* The Claim Relic: Faceted Obsidian & Glowing Ember */}
+        <g transform="translate(720, 530)">
+          {/* Singularity Glow */}
+          <circle
+            cx="0"
+            cy="0"
+            r="30"
+            fill="#F2A16A"
+            opacity="0.35"
+            className="animate-ember-pulse"
+          />
+          <circle cx="0" cy="0" r="10" fill="#F2A16A" />
+          {/* Faceted Obsidian Core */}
+          <polygon
+            points="0,-24 22,-8 14,20 -14,20 -22,-8"
+            fill="#151413"
+            stroke="#B76548"
+            strokeWidth="1.5"
+          />
+          {/* Copper orbital ring */}
+          <ellipse cx="0" cy="0" rx="34" ry="12" stroke="#B76548" strokeWidth="1.2" fill="none" />
+        </g>
       </svg>
 
       {/* Atmospheric Vignette Overlay */}
-      <div className="pointer-events-none absolute inset-0 bg-radial from-transparent via-[#0C0D11]/60 to-[#0A0B0E]" />
+      <div className="pointer-events-none absolute inset-0 bg-radial from-transparent via-[#090909]/60 to-[#050505]" />
     </div>
   );
 };

@@ -1,31 +1,39 @@
 @import 'tailwindcss';
 
 :root {
-  --color-obsidian: #0c0d11;
-  --color-graphite: #22242b;
-  --color-parchment: #e8e0d2;
-  --color-gold: #b9975b;
-  --color-gold-dim: #7a633a;
-  --color-gold-glow: rgba(185, 151, 91, 0.25);
+  --color-basalt-void: #090909;
+  --color-obsidian: #151413;
+  --color-weathered-stone: #292521;
+  --color-warm-bone: #e8e0d1;
+  --color-copper: #b76548;
+  --color-ember: #f2a16a;
+  --color-ash: #9c948a;
+
+  /* Compatibility aliases */
+  --color-parchment: #e8e0d1;
+  --color-gold: #b76548;
+  --color-gold-dim: #733c2a;
+  --color-gold-glow: rgba(183, 101, 72, 0.25);
+  --color-graphite: #1d1b19;
   --color-crimson: #b85c6c;
   --color-teal: #5fbaa7;
-  --color-slate: #8990a5;
-  --color-border: rgba(185, 151, 91, 0.2);
+  --color-slate: #9c948a;
+  --color-border: rgba(183, 101, 72, 0.2);
 
   --font-serif: 'Cormorant Garamond', Georgia, serif;
   --font-sans: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, sans-serif;
   --font-mono: 'IBM Plex Mono', monospace;
 
   font-family: var(--font-sans);
-  background-color: var(--color-obsidian);
-  color: var(--color-parchment);
+  background-color: var(--color-basalt-void);
+  color: var(--color-warm-bone);
 }
 
 body {
   margin: 0;
   padding: 0;
-  background-color: var(--color-obsidian);
-  color: var(--color-parchment);
+  background-color: var(--color-basalt-void);
+  color: var(--color-warm-bone);
   overflow-x: hidden;
   min-height: 100vh;
 }
@@ -50,36 +58,64 @@ body {
 }
 
 /* Atmospheric animations */
-@keyframes goldPulse {
+@keyframes emberPulse {
   0%,
   100% {
-    opacity: 0.6;
-    filter: drop-shadow(0 0 6px rgba(185, 151, 91, 0.3));
+    opacity: 0.55;
+    filter: drop-shadow(0 0 6px rgba(242, 161, 106, 0.35));
   }
   50% {
     opacity: 1;
-    filter: drop-shadow(0 0 14px rgba(185, 151, 91, 0.7));
+    filter: drop-shadow(0 0 16px rgba(242, 161, 106, 0.8));
   }
 }
 
 @keyframes lightShaftDrift {
   0%,
   100% {
-    opacity: 0.25;
-    transform: rotate(-1deg) scaleX(1);
+    opacity: 0.2;
+    transform: rotate(-0.5deg) scaleX(1);
   }
   50% {
-    opacity: 0.45;
-    transform: rotate(1deg) scaleX(1.08);
+    opacity: 0.38;
+    transform: rotate(0.8deg) scaleX(1.05);
   }
 }
 
-.animate-gold-pulse {
-  animation: goldPulse 4s ease-in-out infinite;
+@keyframes gatePulse {
+  0%,
+  100% {
+    box-shadow: 0 0 30px rgba(183, 101, 72, 0.15);
+  }
+  50% {
+    box-shadow: 0 0 55px rgba(183, 101, 72, 0.35);
+  }
+}
+
+.animate-ember-pulse {
+  animation: emberPulse 3.5s ease-in-out infinite;
 }
 
 .animate-shaft-drift {
-  animation: lightShaftDrift 10s ease-in-out infinite;
+  animation: lightShaftDrift 12s ease-in-out infinite;
+}
+
+.animate-gate-pulse {
+  animation: gatePulse 4s ease-in-out infinite;
+}
+
+/* Hide scrollbar for immersive experience */
+.scrollbar-hidden {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-hidden::-webkit-scrollbar {
+  display: none;
+}
+
+/* Immersive cursor */
+html {
+  cursor: default;
 }
 
 /* Accessibility: Reduced motion overrides */
