@@ -530,6 +530,228 @@ class ObsidianAudioEngine {
       // Audio fallback
     }
   }
+
+  // ── Realistic Psychological Thriller Cues: "The Room Was Never Empty" ──
+
+  // Tactile brass banker lamp switch snap + warm tungsten filament surge
+  public playLampSwitch(pan?: number) {
+    if (this.isMuted) return;
+    this.initContext();
+    if (!this.ctx) return;
+    try {
+      const now = this.ctx.currentTime;
+      const clickGain = this.ctx.createGain();
+      clickGain.gain.setValueAtTime(0.06, now);
+      clickGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.04);
+
+      const clickOsc = this.ctx.createOscillator();
+      clickOsc.type = 'square';
+      clickOsc.frequency.setValueAtTime(1400, now);
+      clickOsc.frequency.exponentialRampToValueAtTime(180, now + 0.04);
+      clickOsc.connect(clickGain);
+      this.connectPanned(clickGain, pan ?? 0);
+      clickOsc.start(now);
+      clickOsc.stop(now + 0.05);
+
+      const humGain = this.ctx.createGain();
+      humGain.gain.setValueAtTime(0.0001, now + 0.02);
+      humGain.gain.exponentialRampToValueAtTime(0.02, now + 0.1);
+      humGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.9);
+
+      const humOsc = this.ctx.createOscillator();
+      humOsc.type = 'sine';
+      humOsc.frequency.setValueAtTime(120, now + 0.02);
+      humOsc.connect(humGain);
+      this.connectPanned(humGain, pan ?? 0);
+      humOsc.start(now + 0.02);
+      humOsc.stop(now + 0.95);
+    } catch {
+      // Audio fallback
+    }
+  }
+
+  // Tactile kraft paper friction and folder opening
+  public playFileSlideOpen(pan?: number) {
+    if (this.isMuted) return;
+    this.initContext();
+    if (!this.ctx) return;
+    try {
+      const now = this.ctx.currentTime;
+      const bufferSize = Math.floor(this.ctx.sampleRate * 0.45);
+      const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+      const data = buffer.getChannelData(0);
+      for (let i = 0; i < bufferSize; i++) {
+        data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (bufferSize * 0.4));
+      }
+      const noise = this.ctx.createBufferSource();
+      noise.buffer = buffer;
+
+      const filter = this.ctx.createBiquadFilter();
+      filter.type = 'bandpass';
+      filter.frequency.setValueAtTime(800, now);
+      filter.frequency.exponentialRampToValueAtTime(2200, now + 0.3);
+      filter.Q.setValueAtTime(2.5, now);
+
+      const gain = this.ctx.createGain();
+      gain.gain.setValueAtTime(0.035, now);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.45);
+
+      noise.connect(filter);
+      filter.connect(gain);
+      this.connectPanned(gain, pan ?? -0.2);
+      noise.start(now);
+    } catch {
+      // Audio fallback
+    }
+  }
+
+  // CRT monitor power and scanline hum
+  public playMonitorCrt(pan?: number) {
+    if (this.isMuted) return;
+    this.initContext();
+    if (!this.ctx) return;
+    try {
+      const now = this.ctx.currentTime;
+      const flybackGain = this.ctx.createGain();
+      flybackGain.gain.setValueAtTime(0.015, now);
+      flybackGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.7);
+
+      const flybackOsc = this.ctx.createOscillator();
+      flybackOsc.type = 'sine';
+      flybackOsc.frequency.setValueAtTime(8000, now);
+      flybackOsc.frequency.exponentialRampToValueAtTime(15734, now + 0.15);
+
+      flybackOsc.connect(flybackGain);
+      this.connectPanned(flybackGain, pan ?? 0.25);
+      flybackOsc.start(now);
+      flybackOsc.stop(now + 0.75);
+    } catch {
+      // Audio fallback
+    }
+  }
+
+  // Forensic access record punch / dot-matrix stamp
+  public playTimestampClick(pan?: number) {
+    if (this.isMuted) return;
+    this.initContext();
+    if (!this.ctx) return;
+    try {
+      const now = this.ctx.currentTime;
+      const gain = this.ctx.createGain();
+      gain.gain.setValueAtTime(0.05, now);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.18);
+
+      const osc = this.ctx.createOscillator();
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(620, now);
+      osc.frequency.exponentialRampToValueAtTime(95, now + 0.15);
+
+      osc.connect(gain);
+      this.connectPanned(gain, pan ?? 0.3);
+      osc.start(now);
+      osc.stop(now + 0.2);
+    } catch {
+      // Audio fallback
+    }
+  }
+
+  // Low, unsettling minor-second dissonance when contradiction is revealed
+  public playAnomalyChime(pan?: number) {
+    if (this.isMuted) return;
+    this.initContext();
+    if (!this.ctx) return;
+    try {
+      const now = this.ctx.currentTime;
+      const gain = this.ctx.createGain();
+      gain.gain.setValueAtTime(0.0001, now);
+      gain.gain.exponentialRampToValueAtTime(0.04, now + 0.2);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + 2.2);
+
+      const filter = this.ctx.createBiquadFilter();
+      filter.type = 'lowpass';
+      filter.frequency.setValueAtTime(450, now);
+
+      [110, 116.54].forEach((f) => {
+        if (!this.ctx) return;
+        const osc = this.ctx.createOscillator();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(f, now);
+        osc.connect(filter);
+        osc.start(now);
+        osc.stop(now + 2.2);
+      });
+
+      filter.connect(gain);
+      this.connectPanned(gain, pan ?? 0);
+    } catch {
+      // Audio fallback
+    }
+  }
+
+  // Heavy brass / steel door deadbolt latch release and chamber resonance
+  public playDoorLatchRelease(pan?: number) {
+    if (this.isMuted) return;
+    this.initContext();
+    if (!this.ctx) return;
+    try {
+      const now = this.ctx.currentTime;
+      const impactGain = this.ctx.createGain();
+      impactGain.gain.setValueAtTime(0.07, now);
+      impactGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.4);
+
+      const impactOsc = this.ctx.createOscillator();
+      impactOsc.type = 'sine';
+      impactOsc.frequency.setValueAtTime(140, now);
+      impactOsc.frequency.exponentialRampToValueAtTime(42, now + 0.35);
+      impactOsc.connect(impactGain);
+      this.connectPanned(impactGain, pan ?? 0);
+      impactOsc.start(now);
+      impactOsc.stop(now + 0.45);
+
+      const decayGain = this.ctx.createGain();
+      decayGain.gain.setValueAtTime(0.0001, now + 0.05);
+      decayGain.gain.exponentialRampToValueAtTime(0.03, now + 0.25);
+      decayGain.gain.exponentialRampToValueAtTime(0.0001, now + 2.5);
+
+      const decayFilter = this.ctx.createBiquadFilter();
+      decayFilter.type = 'lowpass';
+      decayFilter.frequency.setValueAtTime(180, now);
+
+      const decayOsc = this.ctx.createOscillator();
+      decayOsc.type = 'sine';
+      decayOsc.frequency.setValueAtTime(55, now);
+      decayOsc.connect(decayFilter);
+      decayFilter.connect(decayGain);
+      this.connectPanned(decayGain, pan ?? 0);
+      decayOsc.start(now + 0.05);
+      decayOsc.stop(now + 2.6);
+    } catch {
+      // Audio fallback
+    }
+  }
+
+  // Subtle jog click for surveillance monitor scrubber
+  public playScrubClick() {
+    if (this.isMuted) return;
+    this.initContext();
+    if (!this.ctx) return;
+    try {
+      const now = this.ctx.currentTime;
+      const gain = this.ctx.createGain();
+      gain.gain.setValueAtTime(0.02, now);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.02);
+
+      const osc = this.ctx.createOscillator();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(880, now);
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start(now);
+      osc.stop(now + 0.025);
+    } catch {
+      // Audio fallback
+    }
+  }
 }
 
 export const obsidianAudio = new ObsidianAudioEngine();

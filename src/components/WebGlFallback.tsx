@@ -9,37 +9,23 @@ export const WebGlFallback: React.FC<WebGlFallbackProps> = ({
   progress = 0.2,
   isEntering = false,
 }) => {
-  // Master-timeline windows (7.5 s, see CinematicEngine):
-  // Gates part 0.8–0.92 (after the lock bolts); the opposition wedge advances
-  // 0.433–0.6 and strikes at 0.565–0.615; evidence docks 0.26–0.4.
   // Gate separation factor in the revelation/finale window
-  const gateOpenPx = isEntering ? 80 : progress >= 0.8 ? ((progress - 0.8) / 0.12) * 65 : 0;
-  // Opposition blade advance through the challenge act
-  const bladeT =
-    progress >= 0.433 && progress < 0.6 ? (progress - 0.433) / 0.167 : progress >= 0.6 ? 1 : 0;
-  const bladeX = 1100 - bladeT * 320;
-  const bladeY = 320 + bladeT * 180;
-  // Evidence assembly in the evidence act
-  const evidenceT =
-    progress >= 0.26 && progress < 0.6
-      ? Math.min(1, (progress - 0.26) / 0.145)
-      : progress >= 0.6
-        ? 1
-        : 0;
+  const gateOpenPx = isEntering ? 90 : progress >= 0.76 ? ((progress - 0.76) / 0.18) * 70 : 0;
+  const deskLightOpacity = progress > 0.03 ? 1 : 0.2;
 
   return (
     <div
-      className="pointer-events-none absolute inset-0 z-0 h-full w-full overflow-hidden bg-[#090909] select-none"
-      aria-label="Atmospheric Backdrop of Holy Trial"
+      className="pointer-events-none absolute inset-0 z-0 h-full w-full overflow-hidden bg-[#111315] select-none"
+      aria-label="Atmospheric Backdrop of Holy Trial — The Room Was Never Empty"
       role="img"
     >
-      {/* Background subterranean depth radial gradient */}
-      <div className="absolute inset-0 bg-radial from-[#151413] via-[#090909] to-[#050505] opacity-95" />
+      {/* Background judicial depth gradient */}
+      <div className="absolute inset-0 bg-radial from-[#292E30] via-[#181B1D] to-[#111315] opacity-95" />
 
       {/* Central Volumetric Light Beam */}
       <div
-        className={`absolute top-0 left-1/2 h-full w-80 origin-top -translate-x-1/2 transform bg-gradient-to-b from-[#E8E0D1]/20 via-[#B76548]/10 to-transparent blur-3xl md:w-[480px] ${
-          isEntering ? 'scale-125 opacity-80' : ''
+        className={`via-[#C6A16B]/05 absolute top-0 left-1/2 h-full w-80 origin-top -translate-x-1/2 transform bg-gradient-to-b from-[#C6A16B]/20 to-transparent blur-3xl transition-all duration-1000 md:w-[480px] ${
+          isEntering ? 'scale-125 opacity-90' : 'opacity-60'
         }`}
       />
 
@@ -55,45 +41,45 @@ export const WebGlFallback: React.FC<WebGlFallbackProps> = ({
       >
         <defs>
           <linearGradient id="pillarLeftGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-            <stop offset="0%" stopColor="#090909" />
-            <stop offset="85%" stopColor="#151413" />
-            <stop offset="100%" stopColor="#292521" />
+            <stop offset="0%" stopColor="#111315" />
+            <stop offset="85%" stopColor="#181B1D" />
+            <stop offset="100%" stopColor="#292E30" />
           </linearGradient>
           <linearGradient id="pillarRightGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-            <stop offset="0%" stopColor="#292521" />
-            <stop offset="15%" stopColor="#151413" />
-            <stop offset="100%" stopColor="#090909" />
+            <stop offset="0%" stopColor="#292E30" />
+            <stop offset="15%" stopColor="#181B1D" />
+            <stop offset="100%" stopColor="#111315" />
           </linearGradient>
           <linearGradient id="daisGrad" x1="0%" y1="0%" x2="0%" y2="100%">
-            <stop offset="0%" stopColor="#292521" />
-            <stop offset="50%" stopColor="#151413" />
-            <stop offset="100%" stopColor="#090909" />
+            <stop offset="0%" stopColor="#292E30" />
+            <stop offset="50%" stopColor="#181B1D" />
+            <stop offset="100%" stopColor="#111315" />
           </linearGradient>
           <linearGradient id="floorGrad" x1="0%" y1="0%" x2="0%" y2="100%">
-            <stop offset="0%" stopColor="#151413" />
-            <stop offset="40%" stopColor="#0D0D0C" />
-            <stop offset="100%" stopColor="#050505" />
+            <stop offset="0%" stopColor="#181B1D" />
+            <stop offset="40%" stopColor="#141618" />
+            <stop offset="100%" stopColor="#0B0D0E" />
           </linearGradient>
           <radialGradient id="portalGlow" cx="50%" cy="50%" r="50%">
-            <stop offset="0%" stopColor="#F2A16A" stopOpacity="0.5" />
-            <stop offset="60%" stopColor="#B76548" stopOpacity="0.2" />
-            <stop offset="100%" stopColor="#090909" stopOpacity="0" />
+            <stop offset="0%" stopColor="#C6A16B" stopOpacity="0.45" />
+            <stop offset="60%" stopColor="#555859" stopOpacity="0.15" />
+            <stop offset="100%" stopColor="#111315" stopOpacity="0" />
           </radialGradient>
         </defs>
 
         {/* Luminous Inner Portal Glow behind Gate */}
         <circle cx="720" cy="400" r={160 + gateOpenPx * 1.5} fill="url(#portalGlow)" />
 
-        {/* Colossal Inner Gates (monoliths parting in Chapter IV) */}
+        {/* Colossal Inner Tribunal Gates */}
         {/* Left Gate Monolith */}
         <rect
           x={640 - gateOpenPx}
           y="180"
           width="76"
           height="450"
-          fill="#100F0E"
-          stroke="#B76548"
-          strokeOpacity="0.3"
+          fill="#141618"
+          stroke="#C6A16B"
+          strokeOpacity="0.35"
           strokeWidth="1.5"
         />
         {/* Right Gate Monolith */}
@@ -102,23 +88,23 @@ export const WebGlFallback: React.FC<WebGlFallbackProps> = ({
           y="180"
           width="76"
           height="450"
-          fill="#100F0E"
-          stroke="#B76548"
-          strokeOpacity="0.3"
+          fill="#141618"
+          stroke="#C6A16B"
+          strokeOpacity="0.35"
           strokeWidth="1.5"
         />
 
         {/* Chamber Floor */}
         <polygon points="0,630 1440,630 1440,900 0,900" fill="url(#floorGrad)" />
 
-        {/* Floor Perspective Copper Lines */}
+        {/* Slate Floor Grid Lines */}
         <line
           x1="720"
           y1="630"
           x2="120"
           y2="900"
-          stroke="#B76548"
-          strokeOpacity="0.25"
+          stroke="#555859"
+          strokeOpacity="0.3"
           strokeWidth="1"
         />
         <line
@@ -126,154 +112,106 @@ export const WebGlFallback: React.FC<WebGlFallbackProps> = ({
           y1="630"
           x2="1320"
           y2="900"
-          stroke="#B76548"
-          strokeOpacity="0.25"
-          strokeWidth="1"
-        />
-        <line
-          x1="720"
-          y1="630"
-          x2="460"
-          y2="900"
-          stroke="#B76548"
-          strokeOpacity="0.15"
-          strokeWidth="1"
-        />
-        <line
-          x1="720"
-          y1="630"
-          x2="980"
-          y2="900"
-          stroke="#B76548"
-          strokeOpacity="0.15"
-          strokeWidth="1"
-        />
-
-        {/* Central Megalithic Dais */}
-        <polygon
-          points="540,660 900,660 960,730 480,730"
-          fill="url(#daisGrad)"
-          stroke="#B76548"
-          strokeOpacity="0.45"
-          strokeWidth="1"
-        />
-        <polygon
-          points="580,640 860,640 890,660 550,660"
-          fill="#1A1816"
-          stroke="#B76548"
+          stroke="#555859"
           strokeOpacity="0.3"
-          strokeWidth="0.8"
-        />
-
-        {/* Dais Concentric Inlay Rings */}
-        <ellipse
-          cx="720"
-          cy="685"
-          rx="110"
-          ry="24"
-          stroke="#B76548"
           strokeWidth="1"
-          strokeDasharray="4 4"
-          opacity="0.75"
         />
+        <line
+          x1="720"
+          y1="630"
+          x2="520"
+          y2="900"
+          stroke="#555859"
+          strokeOpacity="0.2"
+          strokeWidth="1"
+        />
+        <line
+          x1="720"
+          y1="630"
+          x2="920"
+          y2="900"
+          stroke="#555859"
+          strokeOpacity="0.2"
+          strokeWidth="1"
+        />
+
+        {/* Central Long Hearing Table Dais */}
+        <polygon
+          points="540,680 900,680 950,770 490,770"
+          fill="url(#daisGrad)"
+          stroke="#555859"
+          strokeOpacity="0.4"
+          strokeWidth="1"
+        />
+
+        {/* Practical Lamp Glow on Table */}
         <ellipse
           cx="720"
-          cy="685"
-          rx="55"
-          ry="12"
-          stroke="#B76548"
-          strokeWidth="1.2"
-          opacity="0.9"
+          cy="725"
+          rx="140"
+          ry="35"
+          fill="#C6A16B"
+          fillOpacity={0.18 * deskLightOpacity}
         />
 
-        {/* Left Basalt Colonnade */}
-        <polygon points="0,0 200,0 230,710 0,770" fill="url(#pillarLeftGrad)" />
-        <polygon
-          points="240,90 350,90 370,650 250,670"
-          fill="url(#pillarLeftGrad)"
-          opacity="0.85"
-        />
-        <polygon
-          points="380,190 460,190 475,630 390,640"
-          fill="url(#pillarLeftGrad)"
-          opacity="0.7"
-        />
-
-        {/* Right Basalt Colonnade */}
-        <polygon points="1240,0 1440,0 1440,770 1210,710" fill="url(#pillarRightGrad)" />
-        <polygon
-          points="1090,90 1200,90 1190,670 1070,650"
-          fill="url(#pillarRightGrad)"
-          opacity="0.85"
-        />
-        <polygon
-          points="980,190 1060,190 1050,640 965,630"
-          fill="url(#pillarRightGrad)"
-          opacity="0.7"
+        {/* Case File on Left of Table */}
+        <rect
+          x="560"
+          y="710"
+          width="60"
+          height="40"
+          fill="#E5DED0"
+          fillOpacity={0.85}
+          stroke="#782F37"
+          strokeWidth="1"
+          transform="rotate(-5 590 730)"
         />
 
-        {/* Evidence Fragments (Evidence Act Docking) */}
-        <g opacity={progress >= 0.24 ? 1 : 0.2} className="transition-opacity duration-700">
-          {/* Left Evidence Fragment */}
-          <polygon
-            points={`${640 - (1 - evidenceT) * 180},540 ${655 - (1 - evidenceT) * 180},520 ${665 - (1 - evidenceT) * 180},550 ${650 - (1 - evidenceT) * 180},565`}
-            fill="#E8E0D1"
-            stroke="#B76548"
-            strokeWidth="1"
-          />
-          {/* Right Evidence Fragment */}
-          <polygon
-            points={`${800 + (1 - evidenceT) * 180},540 ${815 + (1 - evidenceT) * 180},520 ${825 + (1 - evidenceT) * 180},550 ${810 + (1 - evidenceT) * 180},565`}
-            fill="#E8E0D1"
-            stroke="#B76548"
-            strokeWidth="1"
-          />
-        </g>
+        {/* CCTV Monitor in Center */}
+        <rect
+          x="700"
+          y="695"
+          width="45"
+          height="38"
+          fill="#111315"
+          stroke="#555859"
+          strokeWidth="1.5"
+        />
+        <rect
+          x="704"
+          y="699"
+          width="37"
+          height="30"
+          fill="#292E30"
+          stroke="#C6A16B"
+          strokeOpacity="0.6"
+          strokeWidth="0.5"
+        />
 
-        {/* Adversarial Opposition Blade (Opposition Act Monolith) */}
-        {progress >= 0.4133 && (
-          <g
-            transform={`translate(${bladeX - 720}, ${bladeY - 500})`}
-            className="transition-transform duration-500"
-          >
-            <polygon
-              points="720,440 760,540 680,540"
-              fill="#E8E0D1"
-              stroke="#B76548"
-              strokeWidth="1.5"
-            />
-            {progress >= 0.55 && progress <= 0.615 && (
-              <circle
-                cx="700"
-                cy="510"
-                r="16"
-                fill="#F2A16A"
-                opacity="0.7"
-                className="animate-ping"
-              />
-            )}
-          </g>
-        )}
+        {/* Access Record on Right */}
+        <rect
+          x="780"
+          y="715"
+          width="50"
+          height="28"
+          fill="#E5DED0"
+          fillOpacity={0.8}
+          stroke="#782F37"
+          strokeWidth="1"
+          transform="rotate(4 805 729)"
+        />
 
-        {/* The Claim Relic: Faceted Obsidian & Glowing Ember */}
-        <g transform="translate(720, 530)">
-          {/* Singularity Glow */}
-          <circle cx="0" cy="0" r="30" fill="#F2A16A" opacity="0.35" />
-          <circle cx="0" cy="0" r="10" fill="#F2A16A" />
-          {/* Faceted Obsidian Core */}
-          <polygon
-            points="0,-24 22,-8 14,20 -14,20 -22,-8"
-            fill="#151413"
-            stroke="#B76548"
-            strokeWidth="1.5"
-          />
-          {/* Copper orbital ring */}
-          <ellipse cx="0" cy="0" rx="34" ry="12" stroke="#B76548" strokeWidth="1.2" fill="none" />
-        </g>
+        {/* Oxblood stamp dot on record */}
+        <circle cx="818" cy="728" r="4" fill="#782F37" />
+
+        {/* Acoustic Lateral Wall Pillars */}
+        <rect x="0" y="0" width="160" height="630" fill="url(#pillarLeftGrad)" />
+        <rect x="1280" y="0" width="160" height="630" fill="url(#pillarRightGrad)" />
+
+        {/* Ceiling Baffles */}
+        <line x1="0" y1="180" x2="1440" y2="180" stroke="#292E30" strokeWidth="1" opacity="0.6" />
+        <line x1="0" y1="120" x2="1440" y2="120" stroke="#292E30" strokeWidth="1" opacity="0.4" />
       </svg>
-
-      {/* Atmospheric Vignette Overlay */}
-      <div className="pointer-events-none absolute inset-0 bg-radial from-transparent via-[#090909]/60 to-[#050505]" />
     </div>
   );
 };

@@ -76,7 +76,7 @@ describe('LandingPage — Holy Trial Interactive Prologue', () => {
     // fast; the throttled React snapshot (≈15 fps rAF) catches up on its own.
     const engine = getCinematicEngine();
     act(() => {
-      for (let i = 0; i < 486; i++) engine.update(1 / 60);
+      for (let i = 0; i < 1350; i++) engine.update(1 / 60);
     });
 
     const cta = await screen.findByRole('button', { name: /ENTER THE COURT/i });

@@ -1,39 +1,21 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { TribunalCanvas } from './Tribunal3D/TribunalCanvas';
-import { WebGlFallback } from './WebGlFallback';
+import { RoomWasNeverEmptyScene } from './RoomWasNeverEmptyScene';
 import { CharterDrawer } from './CharterDrawer';
 import { CaseDossier } from './CaseDossier';
 import { useCinematic } from './useCinematic';
 import { Volume2, VolumeX } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
-function checkWebGlSupport(): boolean {
-  if (typeof window === 'undefined') return true;
-  try {
-    const canvas = document.createElement('canvas');
-    return Boolean(canvas.getContext('webgl') || canvas.getContext('experimental-webgl'));
-  } catch {
-    return false;
-  }
-}
-
 export const LandingPage: React.FC = () => {
   const [currentView, setCurrentView] = useState<'threshold' | 'dossier'>('threshold');
   const [isCharterOpen, setIsCharterOpen] = useState(false);
   const [isAudioActive, setIsAudioActive] = useState(false);
-  const [webGlAvailable] = useState(() => checkWebGlSupport());
 
   // ── Cinematic Engine ────────────────────────────────────────────────
   const {
     state: cinematicState,
-    engine,
-    inspectClaim,
-    finishClaimInspect,
-    hoverClaim,
-    inspectEvidence,
-    finishEvidenceInspect,
-    releaseDecisionHold,
-    makeDecision,
+    inspectObject,
+    setMonitorScrub,
     enterCourt,
     toggleAudio,
   } = useCinematic();
@@ -41,43 +23,25 @@ export const LandingPage: React.FC = () => {
   // ── Keyboard Accessibility ──────────────────────────────────────────
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      // Tab / Enter / Space for interaction with focused elements is
-      // handled natively. Cinematic shortcuts:
-      //  c — inspect the claim
-      //  1/q — corroborant (or, while the cross-exam window is open, choose it)
-      //  2/w — dissent shard (same decision-window promotion)
-      //  3/e — veiled record
-      //  Escape — release whichever interaction hold is active
-      const s = engine.getState();
-      const decisionReady = s.decisionWindowActive && s.crossExamChoice === null;
-
-      if (e.key === 'c') {
-        inspectClaim();
-      } else if (e.key === '1' || e.key === 'q') {
-        if (decisionReady) makeDecision('align_support');
-        else inspectEvidence('supporting');
-      } else if (e.key === '2' || e.key === 'w') {
-        if (decisionReady) makeDecision('expose_contradiction');
-        else inspectEvidence('contradictory');
-      } else if (e.key === '3' || e.key === 'e') {
-        inspectEvidence('incomplete');
+      // Desk shortcuts belong to the threshold view only — they must never
+      // open inspection panels on top of the Case Dossier view.
+      if (currentView !== 'threshold') return;
+      // 1: Case File · 2: CCTV Monitor · 3: Access Record · C: Compare · Escape: Close
+      if (e.key === 'c' || e.key === 'C') {
+        inspectObject('compare');
+      } else if (e.key === '1') {
+        inspectObject('case_file');
+      } else if (e.key === '2') {
+        inspectObject('monitor');
+      } else if (e.key === '3') {
+        inspectObject('access_record');
       } else if (e.key === 'Escape') {
-        finishClaimInspect();
-        finishEvidenceInspect();
-        releaseDecisionHold();
+        inspectObject('none');
       }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [
-    engine,
-    inspectClaim,
-    inspectEvidence,
-    makeDecision,
-    finishClaimInspect,
-    finishEvidenceInspect,
-    releaseDecisionHold,
-  ]);
+  }, [currentView, inspectObject]);
 
   // ── Enter Court Transition ──────────────────────────────────────────
   const handleEnterCourt = useCallback(() => {
@@ -95,50 +59,40 @@ export const LandingPage: React.FC = () => {
   }, [toggleAudio]);
 
   // ── Derived Visual State ────────────────────────────────────────────
-  const titleOpacity = cinematicState.titleOpacity;
   const showGateCTA = cinematicState.ctaVisible;
-  // CTA ramps across the finale (progress 0.92–1.0 ≈ 6.9–7.5 s):
-  // begins ≈7.05 s, fully visible by ≈7.5 s.
   const gateCTAOpacity = showGateCTA
     ? Math.min(1, Math.max(0.25, (cinematicState.progress - 0.94) / 0.06 + 0.25))
     : 0;
+  // While an evidence panel is open the hero hides completely so it never
+  // overlaps or competes with physical documents or inspection overlays.
+  const isInspecting = cinematicState.activeInspect !== 'none';
+  const heroOpacity = isInspecting ? 0 : gateCTAOpacity;
 
   return (
-    <div className="relative flex min-h-screen w-full flex-col overflow-hidden bg-[#090909] text-[#E8E0D1] select-none">
-      {/* ── 3D World (primary) or WebGL-failure fallback ── */}
-      {webGlAvailable ? (
-        <TribunalCanvas
-          cinematicState={cinematicState}
-          onClaimClick={inspectClaim}
-          onClaimHover={hoverClaim}
-          onClaimInspectEnd={finishClaimInspect}
-          onEvidenceClick={inspectEvidence}
-          onEvidenceInspectEnd={finishEvidenceInspect}
-          onDecision={makeDecision}
-        />
-      ) : (
-        <WebGlFallback
-          progress={cinematicState.progress}
-          isEntering={cinematicState.isEntering || currentView === 'dossier'}
-        />
-      )}
+    <div className="relative min-h-screen w-full overflow-hidden bg-[#111315] text-[#E5DED0] select-none">
+      {/* ── Main Cinematic Scene: The Room Was Never Empty ── */}
+      <RoomWasNeverEmptyScene
+        cinematicState={cinematicState}
+        onInspectObject={inspectObject}
+        onMonitorScrub={setMonitorScrub}
+        onEnterCourt={handleEnterCourt}
+      />
 
-      {/* Atmospheric vignettes */}
-      <div className="pointer-events-none absolute inset-0 z-10 bg-gradient-to-t from-[#090909] via-transparent to-[#090909]/50" />
-      <div className="pointer-events-none absolute inset-0 z-10 bg-radial from-transparent via-[#090909]/15 to-[#090909]/60" />
+      {/* Atmospheric dark vignettes */}
+      <div className="pointer-events-none absolute inset-0 z-10 bg-gradient-to-t from-[#111315] via-transparent to-[#111315]/60" />
 
-      {/* ── Sound Toggle — floating, top-right ── */}
+      {/* ── Sound Toggle — floating, top-right (starts muted, accessible) ── */}
       <button
         type="button"
         onClick={handleToggleAudio}
-        className="fixed top-5 right-5 z-50 flex h-9 w-9 items-center justify-center rounded-full border border-[#B76548]/20 bg-[#090909]/40 backdrop-blur-sm transition-all duration-300 hover:border-[#B76548]/50 hover:bg-[#151413]/70 focus:outline-none"
+        className="fixed top-5 right-5 z-50 flex h-9 w-9 items-center justify-center rounded-full border border-[#C6A16B]/30 bg-[#111315]/60 backdrop-blur-sm transition-all duration-300 hover:border-[#C6A16B] hover:bg-[#181B1D]/80 focus-visible:border-[#C6A16B] focus-visible:ring-1 focus-visible:ring-[#C6A16B]/60 focus-visible:outline-none"
         title={isAudioActive ? 'Mute Sound' : 'Enable Sound'}
         aria-label={isAudioActive ? 'Mute Sound' : 'Enable Sound'}
       >
         {isAudioActive ? (
-          <Volume2 className="h-3.5 w-3.5 text-[#B76548]" />
+          <Volume2 className="h-3.5 w-3.5 text-[#C6A16B]" />
         ) : (
-          <VolumeX className="h-3.5 w-3.5 text-[#9C948A]/50" />
+          <VolumeX className="h-3.5 w-3.5 text-[#555859]" />
         )}
       </button>
 
@@ -153,57 +107,46 @@ export const LandingPage: React.FC = () => {
             transition={{ duration: 0.5 }}
             className="relative flex flex-1 flex-col overflow-hidden"
           >
-            {/* ── HOLY TRIAL — emerges from the world, then recedes ── */}
-            {titleOpacity > 0.01 && (
-              <div
-                className="pointer-events-none fixed inset-0 z-30 flex items-center justify-center"
-                style={{ opacity: titleOpacity }}
-              >
-                <h1
-                  className="font-serif text-5xl leading-none font-normal tracking-[0.15em] text-[#E8E0D1] sm:text-7xl md:text-8xl lg:text-[7rem]"
-                  style={{
-                    textShadow: '0 0 80px rgba(9,9,9,0.9), 0 0 160px rgba(9,9,9,0.7)',
-                    transform: `scale(${0.96 + titleOpacity * 0.04})`,
-                  }}
-                >
-                  HOLY TRIAL
-                </h1>
-              </div>
-            )}
-
-            {/* ── Final Gate CTA — only when story completes ── */}
+            {/* ── Final Gate CTA — appears at FINALE after narrative reveal ── */}
             <AnimatePresence>
               {showGateCTA && !cinematicState.isEntering && (
                 <motion.div
                   initial={{ opacity: 0, y: 16 }}
-                  animate={{ opacity: gateCTAOpacity, y: 0 }}
+                  animate={{ opacity: heroOpacity, y: 0 }}
                   exit={{ opacity: 0, y: 8 }}
-                  transition={{ duration: 0.45, ease: 'easeOut' }}
-                  className="pointer-events-auto fixed bottom-14 left-1/2 z-40 -translate-x-1/2 sm:bottom-20"
+                  transition={{ duration: 0.4, ease: 'easeOut' }}
+                  className={`fixed top-[34%] left-1/2 z-40 w-full max-w-xl -translate-x-1/2 -translate-y-1/2 px-4 text-center sm:top-[36%] ${
+                    isInspecting ? 'pointer-events-none' : 'pointer-events-auto'
+                  }`}
                 >
-                  <div className="flex flex-col items-center gap-5">
-                    {/* Closing title signature */}
-                    <span className="font-serif text-lg tracking-[0.2em] text-[#E8E0D1]/30 sm:text-xl">
-                      HOLY TRIAL
-                    </span>
+                  <div className="flex flex-col items-center gap-3 sm:gap-4">
+                    {/* Closing title signature & thesis line */}
+                    <div className="flex flex-col items-center gap-1.5 text-center">
+                      <h1 className="font-serif text-3xl tracking-[0.25em] text-[#E5DED0] drop-shadow-[0_4px_30px_rgba(0,0,0,0.9)] sm:text-4xl md:text-5xl">
+                        HOLY TRIAL
+                      </h1>
+                      <p className="font-serif text-xs tracking-[0.2em] text-[#E5DED0]/70 italic sm:text-sm">
+                        Every claim has a case.
+                      </p>
+                    </div>
 
                     <button
                       type="button"
                       onClick={handleEnterCourt}
-                      disabled={cinematicState.isEntering}
-                      className="group relative cursor-pointer border border-[#B76548]/50 bg-[#090909]/60 px-10 py-4 font-mono text-sm font-medium tracking-[0.25em] text-[#E8E0D1] backdrop-blur-sm transition-all duration-500 hover:border-[#B76548] hover:bg-[#151413]/80 hover:shadow-[0_0_50px_rgba(183,101,72,0.35)] focus:ring-1 focus:ring-[#B76548]/40 focus:outline-none"
+                      disabled={cinematicState.isEntering || isInspecting}
+                      className="group relative cursor-pointer border border-[#C6A16B]/60 bg-[#111315]/90 px-8 py-3 font-sans text-xs font-semibold tracking-[0.25em] text-[#E5DED0] backdrop-blur-md transition-all duration-500 hover:border-[#C6A16B] hover:bg-[#181B1D] hover:shadow-[0_0_40px_rgba(198,161,107,0.35)] focus-visible:ring-1 focus-visible:ring-[#C6A16B]/60 focus-visible:outline-none sm:px-12 sm:py-3.5 sm:text-sm"
                     >
-                      <div className="absolute -top-px -left-px h-2 w-2 border-t border-l border-[#B76548]/60" />
-                      <div className="absolute -top-px -right-px h-2 w-2 border-t border-r border-[#B76548]/60" />
-                      <div className="absolute -bottom-px -left-px h-2 w-2 border-b border-l border-[#B76548]/60" />
-                      <div className="absolute -right-px -bottom-px h-2 w-2 border-r border-b border-[#B76548]/60" />
+                      <div className="absolute -top-px -left-px h-2 w-2 border-t border-l border-[#C6A16B]" />
+                      <div className="absolute -top-px -right-px h-2 w-2 border-t border-r border-[#C6A16B]" />
+                      <div className="absolute -bottom-px -left-px h-2 w-2 border-b border-l border-[#C6A16B]" />
+                      <div className="absolute -right-px -bottom-px h-2 w-2 border-r border-b border-[#C6A16B]" />
                       ENTER THE COURT
                     </button>
 
                     <button
                       type="button"
                       onClick={() => setIsCharterOpen(true)}
-                      className="font-mono text-[9px] tracking-[0.25em] text-[#9C948A]/30 uppercase transition-colors hover:text-[#9C948A]/60 focus:outline-none"
+                      className="font-sans text-[11px] tracking-[0.2em] text-[#555859] lowercase transition-colors hover:text-[#E5DED0]/80 focus-visible:text-[#E5DED0] focus-visible:underline focus-visible:underline-offset-4 focus-visible:outline-none sm:text-xs"
                     >
                       examine the charter
                     </button>
@@ -212,27 +155,9 @@ export const LandingPage: React.FC = () => {
               )}
             </AnimatePresence>
 
-            {/* Minimal act indicators — right edge, no labels */}
-            <nav
-              aria-label="Story Progress"
-              className="pointer-events-none fixed top-1/2 right-4 z-30 hidden -translate-y-1/2 flex-col items-center gap-3 md:flex"
-            >
-              {[0, 1, 2, 3, 4, 5].map((idx) => {
-                // Map act enum to index for indicator
-                const actIndex = getActIndex(cinematicState.act);
-                return (
-                  <div
-                    key={idx}
-                    className={`transition-all duration-700 ${
-                      actIndex === idx
-                        ? 'h-4 w-0.5 bg-[#B76548]'
-                        : actIndex > idx
-                          ? 'h-1 w-1 rounded-full bg-[#B76548]/35'
-                          : 'h-1 w-1 rounded-full bg-[#9C948A]/15'
-                    }`}
-                  />
-                );
-              })}
+            {/* Accessible progress navigation (visual chapter dots removed per design direction) */}
+            <nav aria-label="Story Progress" className="sr-only" aria-live="polite">
+              <span>Act {getActIndex(cinematicState.act) + 1} of 6</span>
             </nav>
           </motion.div>
         ) : (
@@ -242,7 +167,7 @@ export const LandingPage: React.FC = () => {
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.98 }}
             transition={{ duration: 0.45 }}
-            className="flex flex-1 flex-col justify-between"
+            className="fixed inset-0 z-40 flex flex-col justify-between overflow-y-auto bg-[#111315]/95 backdrop-blur-md"
           >
             <CaseDossier onBackToThreshold={handleReturnToThreshold} />
           </motion.div>
@@ -255,7 +180,7 @@ export const LandingPage: React.FC = () => {
 };
 
 // ── Helper: Map NarrativeAct to progress indicator index ────────────────
-// 6 beats: Opening · Awakening · Evidence · Opposition · Weighing · Revelation→Final
+// 6 beats: Rain Arrival · Case File · Monitor · Contradiction · Overview · Tribunal
 function getActIndex(act: string): number {
   switch (act) {
     case 'INITIALIZING':

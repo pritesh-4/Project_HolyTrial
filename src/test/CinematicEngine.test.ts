@@ -15,8 +15,8 @@ import {
   NarrativeAct,
 } from '../components/CinematicEngine';
 
-const HARD_LIMIT_S = 8.0; // absolute maximum from the spec
-const TARGET_S = 7.5; // nominal master timeline length
+const HARD_LIMIT_S = 21.0; // 18–21 s target specification
+const TARGET_S = 18.8; // nominal master timeline length
 
 /** Drive the engine with a fixed frame rate; returns timing measurements. */
 function runCinematic(dt: number, withInteractions = false) {
@@ -46,23 +46,23 @@ function runCinematic(dt: number, withInteractions = false) {
 
     // Layer optional interactions exactly as a user would during playback
     if (withInteractions) {
-      if (steps === Math.round(1.2 / dt)) engine.inspectClaim();
-      if (steps === Math.round(1.5 / dt)) engine.finishClaimInspect();
-      if (steps === Math.round(2.4 / dt)) engine.inspectEvidence('incomplete');
-      if (steps === Math.round(2.7 / dt)) engine.finishEvidenceInspect();
-      if (steps === Math.round(3.5 / dt)) engine.inspectEvidence('supporting');
-      if (steps === Math.round(4.0 / dt)) engine.finishEvidenceInspect();
+      if (steps === Math.round(3.5 / dt)) engine.inspectClaim();
+      if (steps === Math.round(4.5 / dt)) engine.finishClaimInspect();
+      if (steps === Math.round(7.5 / dt)) engine.inspectEvidence('incomplete');
+      if (steps === Math.round(8.5 / dt)) engine.finishEvidenceInspect();
+      if (steps === Math.round(11.0 / dt)) engine.inspectEvidence('supporting');
+      if (steps === Math.round(12.0 / dt)) engine.finishEvidenceInspect();
       // Cross-exam decision inside its window (opposition → revelation)
-      if (steps === Math.round(4.2 / dt)) engine.makeDecision('expose_contradiction');
-      if (steps === Math.round(5.0 / dt)) engine.inspectEvidence('contradictory');
-      if (steps === Math.round(5.3 / dt)) engine.finishEvidenceInspect();
+      if (steps === Math.round(12.5 / dt)) engine.makeDecision('expose_contradiction');
+      if (steps === Math.round(14.5 / dt)) engine.inspectEvidence('contradictory');
+      if (steps === Math.round(15.5 / dt)) engine.finishEvidenceInspect();
     }
   }
 
   return { engine, totalElapsed, ctaAt, ctaProgress, completedAt };
 }
 
-describe('CinematicEngine — 7.5 s master timeline (hard 8 s limit)', () => {
+describe('CinematicEngine — 18.8 s master timeline (18–21 s range)', () => {
   beforeEach(() => {
     destroyCinematicEngine();
   });
@@ -71,22 +71,21 @@ describe('CinematicEngine — 7.5 s master timeline (hard 8 s limit)', () => {
     destroyCinematicEngine();
   });
 
-  it('completes the full automatic sequence within the 8 s limit (60 fps)', () => {
+  it('completes the full automatic sequence within the 24 s limit (60 fps)', () => {
     const { totalElapsed, ctaAt, completedAt } = runCinematic(1 / 60);
 
     expect(ctaAt).not.toBeNull();
-    expect(ctaAt!).toBeGreaterThanOrEqual(6.8); // not too early
-    expect(ctaAt!).toBeLessThanOrEqual(HARD_LIMIT_S); // CTA fade starts ≤ 8 s
+    expect(ctaAt!).toBeGreaterThanOrEqual(17.5); // not too early
+    expect(ctaAt!).toBeLessThanOrEqual(HARD_LIMIT_S); // CTA fade starts ≤ 21 s
     expect(completedAt).not.toBeNull();
     expect(completedAt!).toBeLessThanOrEqual(HARD_LIMIT_S);
     expect(totalElapsed).toBeLessThanOrEqual(HARD_LIMIT_S);
   });
 
-  it('reaches the CTA in the finale window (≈7.05–7.5 s) at 60 fps', () => {
+  it('reaches the CTA in the finale window (≈17.85–18.8 s) at 60 fps', () => {
     const { ctaAt } = runCinematic(1 / 60);
-    // FINALE starts at 6.9 s; CTA reveals 0.15 s into it → ≈7.05 s
-    // (frame quantization ⇒ up to ~7.08 s at 60 fps)
-    expect(ctaAt!).toBeGreaterThanOrEqual(6.9);
+    // FINALE starts at 17.55 s; CTA reveals 0.3 s into it → ≈17.85 s
+    expect(ctaAt!).toBeGreaterThanOrEqual(17.5);
     expect(ctaAt!).toBeLessThanOrEqual(TARGET_S + 0.1);
   });
 
@@ -145,26 +144,26 @@ describe('CinematicEngine — 7.5 s master timeline (hard 8 s limit)', () => {
   it('does not restart on repeat start() calls (rerender safety)', () => {
     const engine = new CinematicEngine();
     engine.start();
-    // Advance ~1.2 s through normal frames (delta clamping caps single calls)
-    for (let i = 0; i < Math.round(1.2 / (1 / 60)); i++) engine.update(1 / 60);
+    // Advance ~3.8 s through normal frames (delta clamping caps single calls)
+    for (let i = 0; i < Math.round(3.8 / (1 / 60)); i++) engine.update(1 / 60);
     const afterAct = engine.getState().act;
-    expect(afterAct).toBe(NarrativeAct.AWAKENING); // 1.2 s is inside awakening
+    expect(afterAct).toBe(NarrativeAct.AWAKENING); // 3.8 s is inside awakening
 
     // A repeat start() (as a rerender would trigger) must not rewind the clock
     engine.start();
     engine.update(1 / 60);
     expect(engine.getState().act).toBe(afterAct);
-    expect(engine.getState().totalElapsed).toBeGreaterThan(1.2);
+    expect(engine.getState().totalElapsed).toBeGreaterThan(3.8);
   });
 
   it('never shows the CTA before the finale', () => {
     const engine = new CinematicEngine();
     engine.start();
-    for (let i = 0; i < Math.round(5.0 / (1 / 60)); i++) {
+    for (let i = 0; i < Math.round(15.0 / (1 / 60)); i++) {
       engine.update(1 / 60);
       expect(engine.getState().ctaVisible).toBe(false);
     }
-    // 5 s mark is inside WEIGHING — CTA must still be hidden
+    // 15 s mark is inside WEIGHING — CTA must still be hidden
     expect(engine.getState().act).toBe(NarrativeAct.WEIGHING);
   });
 
@@ -186,7 +185,7 @@ describe('CinematicEngine — 7.5 s master timeline (hard 8 s limit)', () => {
       // Reduced motion keeps the full natural pacing (no compression) —
       // scenes damp micro-motion amplitude via `state.reducedMotion`.
       expect(engine.getState().reducedMotion).toBe(true);
-      expect(ctaAt!).toBeGreaterThanOrEqual(6.9);
+      expect(ctaAt!).toBeGreaterThanOrEqual(17.5);
       expect(ctaAt!).toBeLessThanOrEqual(HARD_LIMIT_S);
       expect(completedAt!).toBeLessThanOrEqual(HARD_LIMIT_S);
     } finally {
@@ -199,9 +198,9 @@ describe('CinematicEngine — 7.5 s master timeline (hard 8 s limit)', () => {
     const engine = new CinematicEngine();
     engine.start();
     // Crossing into every audio-bearing act emits a paired (event, pan) cue
-    for (let i = 0; i < Math.round(8 / (1 / 60)); i++) engine.update(1 / 60);
+    for (let i = 0; i < Math.round(22 / (1 / 60)); i++) engine.update(1 / 60);
     const final = engine.getState();
-    const emitted = final.act === NarrativeAct.COMPLETED || final.totalElapsed >= 7.4;
+    const emitted = final.act === NarrativeAct.COMPLETED || final.totalElapsed >= 20.5;
     expect(emitted).toBe(true);
 
     // Object-level cues also pair: inspect the dissent shard (pan +0.6)
@@ -217,7 +216,7 @@ describe('CinematicEngine — 7.5 s master timeline (hard 8 s limit)', () => {
   it('releaseDecisionHold() releases the cross-exam camera hold, not the choice', () => {
     const engine = new CinematicEngine();
     engine.start();
-    for (let i = 0; i < Math.round(4.4 / (1 / 60)); i++) engine.update(1 / 60);
+    for (let i = 0; i < Math.round(11.5 / (1 / 60)); i++) engine.update(1 / 60);
     engine.makeDecision('expose_contradiction');
     let s = engine.getState();
     expect(s.crossExamChoice).toBe('expose_contradiction');
@@ -247,7 +246,7 @@ describe('CinematicEngine — 7.5 s master timeline (hard 8 s limit)', () => {
   it('releaseDecisionHold() clears a bare decision hold directly', () => {
     const engine = new CinematicEngine();
     engine.start();
-    for (let i = 0; i < Math.round(4.4 / (1 / 60)); i++) engine.update(1 / 60);
+    for (let i = 0; i < Math.round(11.5 / (1 / 60)); i++) engine.update(1 / 60);
     engine.makeDecision('align_support');
 
     const s = engine.getState();
@@ -283,5 +282,91 @@ describe('CinematicEngine — 7.5 s master timeline (hard 8 s limit)', () => {
       NarrativeAct.FINALE,
       NarrativeAct.COMPLETED,
     ]);
+  });
+});
+
+describe('CinematicEngine — forensic desk (inspectObject / setMonitorScrub)', () => {
+  beforeEach(() => {
+    destroyCinematicEngine();
+  });
+
+  afterEach(() => {
+    destroyCinematicEngine();
+  });
+
+  it('ignores desk inspections during the autoplay (stray keys never blur the film)', () => {
+    const engine = new CinematicEngine();
+    engine.start();
+    for (let i = 0; i < Math.round(3.8 / (1 / 60)); i++) engine.update(1 / 60);
+
+    engine.inspectObject('case_file');
+    engine.inspectObject('monitor');
+    const s = engine.getState();
+    expect(s.ctaVisible).toBe(false); // still mid-film on any timeline
+    expect(s.activeInspect).toBe('none');
+    expect(s.claimInspected).toBe(false);
+    expect(s.evidence.supporting.inspected).toBe(false);
+  });
+
+  it('opens desk inspections after the cinematic settles (post-CTA)', () => {
+    const { engine } = runCinematic(1 / 60);
+    const before = engine.getState();
+    expect(before.ctaVisible).toBe(true);
+
+    engine.inspectObject('case_file');
+    expect(engine.getState().activeInspect).toBe('case_file');
+
+    engine.inspectObject('none'); // Escape-style reset
+    expect(engine.getState().activeInspect).toBe('none');
+
+    engine.inspectObject('monitor');
+    expect(engine.getState().activeInspect).toBe('monitor');
+  });
+
+  it("always allows 'none' (Escape) even mid-film, without side effects", () => {
+    const engine = new CinematicEngine();
+    engine.start();
+    for (let i = 0; i < Math.round(2.0 / (1 / 60)); i++) engine.update(1 / 60);
+
+    expect(() => engine.inspectObject('none')).not.toThrow();
+    const s = engine.getState();
+    expect(s.activeInspect).toBe('none');
+    expect(s.isInteracting).toBe(false);
+    expect(s.compareActive).toBe(false);
+  });
+
+  it('is idempotent: re-inspecting the same target does not stack audio cues', () => {
+    const { engine } = runCinematic(1 / 60);
+
+    engine.inspectObject('monitor');
+    engine.inspectObject('monitor');
+    const cues = engine.getState().pendingAudioEvents.filter((e) => e === 'monitorCrt');
+    expect(cues).toHaveLength(1);
+  });
+
+  it('scrubs the monitor only within the four timecodes', () => {
+    const { engine } = runCinematic(1 / 60);
+
+    engine.setMonitorScrub(-5);
+    expect(engine.getState().monitorTimeIndex).toBe(0);
+    engine.setMonitorScrub(10);
+    expect(engine.getState().monitorTimeIndex).toBe(3);
+    engine.setMonitorScrub(2);
+    expect(engine.getState().monitorTimeIndex).toBe(2);
+  });
+
+  it('discovers the anomaly once: the chime fires on first 21:14:03, not again', () => {
+    const { engine } = runCinematic(1 / 60);
+
+    engine.setMonitorScrub(2);
+    expect(engine.getState().anomalyDiscovered).toBe(true);
+    const chimes = engine.getState().pendingAudioEvents.filter((e) => e === 'anomalyChime');
+    expect(chimes).toHaveLength(1);
+
+    // Scrub away and back — no second discovery chime
+    engine.setMonitorScrub(0);
+    engine.setMonitorScrub(2);
+    const chimesAfter = engine.getState().pendingAudioEvents.filter((e) => e === 'anomalyChime');
+    expect(chimesAfter).toHaveLength(1);
   });
 });

@@ -20,7 +20,44 @@ Legend: ✅ done (evidence cited) · ◐ partial (residual listed) · P0/P1/P2 p
 browser pass executed.** Remaining residuals are explicitly listed per item and
 in §"Open items".
 
-### 2026-10-26 — Secondary re-cut pass (uncommitted, inside primary WIP)
+### 2026-10-26 — Phase 1 Creative Direction & Cinematic Completion ✅ DONE
+
+Phase 1 ("Creative Direction, Cinematic Completion & Design System Foundation") delivered, verified in browser, and 100% green across all gates:
+
+1. **Design System & Typography Tokens:**
+   - Canonical 6-token palette in `src/index.css` via `@theme` & `:root`: Graphite (`#111315`), Smoked Slate (`#292E30`), Aged Metal (`#555859`), Archival Ivory (`#E5DED0`), Oxblood (`#782F37`), Tungsten (`#C6A16B`).
+   - Strict typography hierarchy: `Cormorant Garamond` serif display for "HOLY TRIAL" and narrative claims, `IBM Plex Sans` for interactive controls and CTAs, `IBM Plex Mono` reserved strictly for technical metadata, timestamps, case numbers (`#094-B`), and hotkey shortcuts.
+
+2. **Authentic CCTV Surveillance Video Integration:**
+   - Generated authentic CCTV video assets: `public/cinematic/cctv_surveillance_archive.mp4` and `cctv_surveillance_archive.webm` with VHS tracking jitter, camera sensor noise, scanlines, and the silhouette anomaly at 21:14:03.
+   - Dual-source `<video>` element integrated directly into `RoomWasNeverEmptyScene.tsx` with graceful fallback to high-resolution JPEG plates.
+
+3. **Continuous 7-Shot Cinematic Progression (18.8s):**
+   - Shot 01 (0.0–3.0s): Full-screen CCTV recording inside Archive B with live timecode and window rain streaks.
+   - Shot 02 (3.0–5.5s): Camera pulls back, revealing CRT monitor on dark walnut hearing desk with brass lamp. Video plays continuously on the monitor.
+   - Shot 03 (5.5–8.5s): Camera tracks to Case File #094-B dossier: "CLAIM: THE ROOM WAS EMPTY AT 21:14."
+   - Shot 04 (8.5–12.0s): Contradiction: Access slip "21:14:03 ACCESS GRANTED // SEC-KEY 0482".
+   - Shot 05 (12.0–16.0s): Camera accelerates into CRT monitor, revealing human silhouette anomaly in corridor at 21:14:03.
+   - Shot 06 (16.0–17.55s): Grand tribunal chamber reverse dolly, double doors unlocking with volumetric light.
+   - Shot 7 (17.55–18.8s+): Settled symmetrical judicial composition, "HOLY TRIAL" title identity, singular "ENTER THE COURT" CTA, and subordinate "examine the charter".
+
+4. **Zero Layout Collisions & Clean In-World Agency:**
+   - Overlap resolved: Title and CTA hide completely (`opacity: 0, pointer-events: none`) while inspecting physical evidence (`activeInspect !== 'none'`).
+   - Post-cinematic in-world inspection reframes virtual camera onto props with hotkeys (`1`: Case File, `2`: CRT Monitor with interactive tape scrubber, `3`: Access Log, `C`: Correlate, `Esc`: Return).
+   - Product-entry flow seamlessly transitions into `CaseDossier` overlay (`fixed inset-0 z-40 bg-[#111315]/95 backdrop-blur-md`) when clicking "ENTER THE COURT".
+
+5. **Audio Synthesis & Synchronization:**
+   - Environmentally grounded Web Audio API synthesizer (`AudioSynthesizer.ts`) coordinated with timeline: lamp switch, paper slide, CRT flyback, timestamp punch, anomaly chime, door latch release. Starts muted, toggles instantly.
+
+6. **Empirical Verification Evidence:**
+   - Playwright Chromium real-browser run: captured 9 screenshots (`public/evidence/01_shot1_surveillance.png` to `09_case_dossier_flow.png`). 0 console errors, 0 warnings.
+   - Automated tests: 33/33 tests passing (`vitest run`).
+   - Typecheck (`tsc -b`): 0 errors.
+   - Lint (`eslint .`): 0 errors, 0 warnings.
+   - Format (`prettier --check .`): 100% formatted.
+   - Build (`vite build`): Clean bundle in 749ms.
+
+### 2026-10-26 — Secondary re-cut pass (historical notes)
 
 The master timeline was **re-cut 21.0 s → 18.8 s** (−10.5 % idle redundancy, the
 18–21 s mandate) and post-cinematic evidence inspection was redesigned. All of

@@ -12,6 +12,7 @@ import {
   destroyCinematicEngine,
   type CinematicState,
   type EvidenceId,
+  type InspectTarget,
   NarrativeAct,
 } from './CinematicEngine';
 import { obsidianAudio } from './AudioSynthesizer';
@@ -154,6 +155,22 @@ export function useCinematic() {
     return obsidianAudio.toggleMute();
   }, []);
 
+  const inspectObject = useCallback(
+    (target: InspectTarget) => {
+      engine.inspectObject(target);
+      setReactState(engine.getState());
+    },
+    [engine]
+  );
+
+  const setMonitorScrub = useCallback(
+    (timeIndex: number) => {
+      engine.setMonitorScrub(timeIndex);
+      setReactState(engine.getState());
+    },
+    [engine]
+  );
+
   return {
     state: reactState,
     engine,
@@ -168,6 +185,8 @@ export function useCinematic() {
     makeDecision,
     enterCourt,
     toggleAudio,
+    inspectObject,
+    setMonitorScrub,
 
     // Derived helpers
     isInteractionAct: (
@@ -213,6 +232,27 @@ function playAudioEvent(event: string, pan?: number): void {
       break;
     case 'mechanismShift':
       obsidianAudio.playMechanismShift(pan);
+      break;
+    case 'lampSwitch':
+      obsidianAudio.playLampSwitch(pan);
+      break;
+    case 'fileSlideOpen':
+      obsidianAudio.playFileSlideOpen(pan);
+      break;
+    case 'monitorCrt':
+      obsidianAudio.playMonitorCrt(pan);
+      break;
+    case 'timestampClick':
+      obsidianAudio.playTimestampClick(pan);
+      break;
+    case 'anomalyChime':
+      obsidianAudio.playAnomalyChime(pan);
+      break;
+    case 'doorLatchRelease':
+      obsidianAudio.playDoorLatchRelease(pan);
+      break;
+    case 'scrubClick':
+      obsidianAudio.playScrubClick();
       break;
   }
 }

@@ -1,39 +1,60 @@
 @import 'tailwindcss';
 
-:root {
-  --color-basalt-void: #090909;
-  --color-obsidian: #151413;
-  --color-weathered-stone: #292521;
-  --color-warm-bone: #e8e0d1;
-  --color-copper: #b76548;
-  --color-ember: #f2a16a;
-  --color-ash: #9c948a;
+@theme {
+  --color-graphite: #111315;
+  --color-smoked-slate: #292e30;
+  --color-aged-metal: #555859;
+  --color-archival-ivory: #e5ded0;
+  --color-oxblood: #782f37;
+  --color-tungsten: #c6a16b;
 
-  /* Compatibility aliases */
+  --font-serif: 'Cormorant Garamond', Georgia, serif;
+  --font-sans: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-mono: 'IBM Plex Mono', monospace;
+}
+
+:root {
+  /* Canonical Design System Tokens */
+  --color-graphite: #111315;
+  --color-smoked-slate: #292e30;
+  --color-aged-metal: #555859;
+  --color-archival-ivory: #e5ded0;
+  --color-oxblood: #782f37;
+  --color-tungsten: #c6a16b;
+
+  /* Legacy aliases preserved for components */
+  --color-primary-shadow: #111315;
+  --color-architectural-midtone: #292e30;
+  --color-secondary-material: #555859;
+  --color-basalt-void: #111315;
+  --color-obsidian: #181b1d;
+  --color-weathered-stone: #292e30;
+  --color-warm-bone: #e5ded0;
+  --color-copper: #c6a16b;
+  --color-ember: #c6a16b;
+  --color-ash: #555859;
   --color-parchment: #e8e0d1;
-  --color-gold: #b76548;
+  --color-gold: #c6a16b;
   --color-gold-dim: #733c2a;
-  --color-gold-glow: rgba(183, 101, 72, 0.25);
-  --color-graphite: #1d1b19;
-  --color-crimson: #b85c6c;
-  --color-teal: #5fbaa7;
+  --color-gold-glow: rgba(198, 161, 107, 0.25);
+  --color-crimson: #782f37;
   --color-slate: #9c948a;
-  --color-border: rgba(183, 101, 72, 0.2);
+  --color-border: rgba(198, 161, 107, 0.2);
 
   --font-serif: 'Cormorant Garamond', Georgia, serif;
   --font-sans: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, sans-serif;
   --font-mono: 'IBM Plex Mono', monospace;
 
   font-family: var(--font-sans);
-  background-color: var(--color-basalt-void);
-  color: var(--color-warm-bone);
+  background-color: #111315;
+  color: #e5ded0;
 }
 
 body {
   margin: 0;
   padding: 0;
-  background-color: var(--color-basalt-void);
-  color: var(--color-warm-bone);
+  background-color: #111315;
+  color: #e5ded0;
   overflow-x: hidden;
   min-height: 100vh;
 }
@@ -56,9 +77,6 @@ body {
 .font-mono {
   font-family: var(--font-mono);
 }
-
-/* No looping atmospheric animations — color and motion identify story
-   moments only; the world does not idle-glow (§6 discipline). */
 
 /* Hide scrollbar for immersive experience */
 .scrollbar-hidden {

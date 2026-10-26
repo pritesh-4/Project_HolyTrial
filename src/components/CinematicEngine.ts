@@ -42,6 +42,7 @@ export type NarrativeAct = (typeof NarrativeAct)[keyof typeof NarrativeAct];
 
 // ── Evidence Artifact Types ─────────────────────────────────────────────
 export type EvidenceId = 'supporting' | 'contradictory' | 'incomplete';
+export type InspectTarget = 'none' | 'case_file' | 'monitor' | 'access_record' | 'compare';
 
 export interface EvidenceState {
   inspected: boolean;
@@ -58,6 +59,12 @@ export interface CinematicState {
   actElapsed: number; // seconds since entering this act
   totalElapsed: number; // seconds since cinematic began
   progress: number; // 0.0 to 1.0, for backward compat with 3D components
+
+  // The Room Was Never Empty: Forensic Investigation State
+  activeInspect: InspectTarget;
+  monitorTimeIndex: number; // 0: 21:13:50, 1: 21:14:00, 2: 21:14:03 (anomaly), 3: 21:14:15
+  anomalyDiscovered: boolean;
+  compareActive: boolean;
 
   // Interaction (overlay state — does not gate the timeline)
   isInteracting: boolean;
@@ -82,9 +89,7 @@ export interface CinematicState {
   // Title
   titleOpacity: number;
 
-  // Audio triggers (consumed by useCinematic loop) — `pendingAudioPans` runs
-  // parallel to `pendingAudioEvents` (stereo position, -1 left … +1 right; 0
-  // omitted = cue's default center).
+  // Audio triggers (consumed by useCinematic loop)
   pendingAudioEvents: string[];
   pendingAudioPans: number[];
 
@@ -95,26 +100,26 @@ export interface CinematicState {
   paused: boolean;
 }
 
-// ── Master timeline budget (seconds) — total = 7.5 ─────────────────────
-// Choreography: 0.0–0.7 The Impact of Arrival · 0.7–1.8 The Claim ·
-// 1.8–3.1 Evidence Emerges · 3.1–4.5 The Challenge · 4.5–5.7 The Tribunal
-// Responds · 5.7–6.9 The Gate · 6.9–7.5 The Invitation (CTA).
-const CINEMATIC_TOTAL_SECONDS = 7.5;
-const CTA_REVEAL_AT = 0.15; // seconds into FINALE (≈7.05 s elapsed)
+// ── Master timeline budget (seconds) — total = 18.8 (18–21s range) ─────
+// The Room Was Never Empty Storyboard (re-cut: ~10% idle redundancy
+// removed; every beat keeps its comprehension pause):
+// 0.0–2.7s Rain and Arrival · 2.7–5.9s The Case File · 5.9–9.3s The First Account (CCTV View)
+// 9.3–12.7s The Contradiction & Anomaly · 12.7–15.2s Something Does Not Fit · 15.2–17.55s The Tribunal
+// 17.55–18.8s The Invitation (CTA).
+const CINEMATIC_TOTAL_SECONDS = 18.8;
+const CTA_REVEAL_AT = 0.3; // seconds into FINALE (≈17.85s elapsed)
 
 const ACT_DURATIONS: Partial<Record<NarrativeAct, number>> = {
-  [NarrativeAct.OPENING]: 0.7, // 0.0–0.7  arrival impact
-  [NarrativeAct.AWAKENING]: 1.1, // 0.7–1.8 claim awakens the machine
-  [NarrativeAct.EVIDENCE]: 1.3, // 1.8–3.1 evidence emerges & relates
-  [NarrativeAct.OPPOSITION]: 1.4, // 3.1–4.5 the challenge strikes
-  [NarrativeAct.WEIGHING]: 1.2, // 4.5–5.7 tribunal responds
-  [NarrativeAct.REVELATION]: 1.2, // 5.7–6.9 gate releases & opens
-  [NarrativeAct.FINALE]: 0.6, // 6.9–7.5 invitation / stable idle
+  [NarrativeAct.OPENING]: 2.7, // 0.0–2.7s rain on glass, dark archive, practical lamp clicks on
+  [NarrativeAct.AWAKENING]: 3.2, // 2.7–5.9s case folder opens: "THE ROOM WAS EMPTY AT 21:14"
+  [NarrativeAct.EVIDENCE]: 3.4, // 5.9–9.3s authentic CCTV surveillance feed: vacant chamber at 21:14:00
+  [NarrativeAct.OPPOSITION]: 3.4, // 9.3–12.7s access record 21:14:03 + silhouette anomaly revealed
+  [NarrativeAct.WEIGHING]: 2.5, // 12.7–15.2s table overview: contradiction tension, shadow on glass
+  [NarrativeAct.REVELATION]: 2.35, // 15.2–17.55s glide to grand tribunal chamber, doors unlock
+  [NarrativeAct.FINALE]: 1.25, // 17.55–18.8s camera settles, HOLY TRIAL title, final CTA appears
 };
 
-// ── Interaction Windows (acts during which an interaction is available) ─
-// Interactions never advance or pause the timeline; they only layer
-// camera framing and local object responses on top of the master clock.
+// ── Interaction Windows ────────────────────────────────────────────────
 interface InteractionWindows {
   claimInspect: readonly NarrativeAct[];
   evidenceInspect: readonly NarrativeAct[];
@@ -150,20 +155,16 @@ function isDecisionWindowOpen(act: NarrativeAct, chosen: CrossExamChoice): boole
 
 const crossExamWindow = INTERACTION_WINDOWS.decision;
 
-// ── Progress Mapping (for 3D compatibility) ─────────────────────────────
-// Act boundaries are exact wall-clock fractions (elapsed s = boundary × 7.5);
-// WITHIN each act progress is smoothstepped for cinematic easing. Scene
-// windows stay monotonic across act edges and are never frame- or
-// scroll-coupled.
+// ── Progress Mapping ────────────────────────────────────────────────────
 const ACT_PROGRESS_RANGES: Record<NarrativeAct, [number, number]> = {
   [NarrativeAct.INITIALIZING]: [0.0, 0.0],
-  [NarrativeAct.OPENING]: [0.0, 0.0933], // 0–0.7 s
-  [NarrativeAct.AWAKENING]: [0.0933, 0.24], // 0.7–1.8
-  [NarrativeAct.EVIDENCE]: [0.24, 0.4133], // 1.8–3.1
-  [NarrativeAct.OPPOSITION]: [0.4133, 0.6], // 3.1–4.5
-  [NarrativeAct.WEIGHING]: [0.6, 0.76], // 4.5–5.7
-  [NarrativeAct.REVELATION]: [0.76, 0.92], // 5.7–6.9
-  [NarrativeAct.FINALE]: [0.92, 1.0], // 6.9–7.5
+  [NarrativeAct.OPENING]: [0.0, 0.1436], // 0.0–2.7s
+  [NarrativeAct.AWAKENING]: [0.1436, 0.3138], // 2.7–5.9s
+  [NarrativeAct.EVIDENCE]: [0.3138, 0.4947], // 5.9–9.3s
+  [NarrativeAct.OPPOSITION]: [0.4947, 0.6755], // 9.3–12.7s
+  [NarrativeAct.WEIGHING]: [0.6755, 0.8085], // 12.7–15.2s
+  [NarrativeAct.REVELATION]: [0.8085, 0.9333], // 15.2–17.55s
+  [NarrativeAct.FINALE]: [0.9333, 1.0], // 17.55–18.8s
   [NarrativeAct.COMPLETED]: [1.0, 1.0],
   // Interaction-mode labels (not reached by the timeline)
   [NarrativeAct.CLAIM]: [0.0, 0.0],
@@ -179,6 +180,11 @@ function createInitialState(): CinematicState {
     actElapsed: 0,
     totalElapsed: 0,
     progress: 0,
+
+    activeInspect: 'none',
+    monitorTimeIndex: 1, // 21:14:00 default
+    anomalyDiscovered: false,
+    compareActive: false,
 
     isInteracting: false,
     interactionTarget: null,
@@ -359,17 +365,12 @@ export class CinematicEngine {
     this.state.progress = range[0] + (range[1] - range[0]) * s;
   }
 
-  // ── Title Opacity — HOLY TRIAL appears with the arrival impact ──────
-  // Window: progress 0.06–0.20 → ≈0.45 s–1.5 s elapsed (arrival → claim)
+  // ── Title Opacity — HOLY TRIAL appears with the final tribunal invitation ──
+  // Window: progress >= 0.9333 (FINALE, ≈17.55s–18.8s elapsed)
   private updateTitle(): void {
     const p = this.state.progress;
-    const T_IN = 0.06,
-      T_PEAK = 0.1,
-      T_OUT = 0.2;
-    if (p >= T_IN && p <= T_OUT) {
-      this.state.titleOpacity =
-        p < T_PEAK ? (p - T_IN) / (T_PEAK - T_IN) : 1 - (p - T_PEAK) / (T_OUT - T_PEAK);
-      this.state.titleOpacity = Math.max(0, Math.min(1, this.state.titleOpacity));
+    if (p >= 0.93) {
+      this.state.titleOpacity = Math.min(1, (p - 0.93) / 0.05);
     } else {
       this.state.titleOpacity = 0;
     }
@@ -404,20 +405,27 @@ export class CinematicEngine {
     if (act === this.lastActForAudio) return;
 
     switch (act) {
+      case NarrativeAct.OPENING:
+        this.queueAudioEvent('lampSwitch', 0);
+        break;
       case NarrativeAct.AWAKENING:
-        this.queueAudioEvent('revealTexture', -0.35); // colonnade, left
+        this.queueAudioEvent('fileSlideOpen', -0.2);
         this.queueAudioEvent('claimEstablished', 0);
         break;
       case NarrativeAct.EVIDENCE:
+        this.queueAudioEvent('monitorCrt', 0.25);
         this.queueAudioEvent('evidenceDock', 0.15);
         break;
       case NarrativeAct.OPPOSITION:
-        this.queueAudioEvent('oppositionImpact', 0.5); // wedge enters right
+        this.queueAudioEvent('timestampClick', 0.3);
+        this.queueAudioEvent('anomalyChime', 0);
+        this.queueAudioEvent('oppositionImpact', 0.5);
         break;
       case NarrativeAct.WEIGHING:
         this.queueAudioEvent('resolutionResonance', 0);
         break;
       case NarrativeAct.REVELATION:
+        this.queueAudioEvent('doorLatchRelease', 0);
         this.queueAudioEvent('gateSwell', 0);
         break;
     }
@@ -425,14 +433,73 @@ export class CinematicEngine {
     this.lastActForAudio = act;
   }
 
-  // ── Player Interactions (timeline overlays) ─────────────────────────
+  // ── Realistic Forensic Investigation Methods ────────────────────────
 
-  /** Interaction I: Inspect the claim — never pauses the cinematic */
+  /**
+   * Inspect a specific object on the desk (case_file, monitor,
+   * access_record, compare). The forensic desk only exists once the autoplay
+   * has settled, so mid-film keystrokes are ignored — a stray key must never
+   * obscure the directed 18.8 s sequence. Escape ('none') always resets.
+   */
+  inspectObject(target: InspectTarget): void {
+    const postCinematic =
+      this.state.ctaVisible ||
+      this.state.act === NarrativeAct.FINALE ||
+      this.state.act === NarrativeAct.COMPLETED;
+    if (target !== 'none' && !postCinematic) return;
+    if (this.state.activeInspect === target && target !== 'none') return;
+
+    this.state.activeInspect = target;
+    this.state.isInteracting = target !== 'none';
+
+    if (target === 'case_file') {
+      this.state.interactionTarget = 'claim';
+      this.state.claimInspected = true;
+      this.queueAudioEvent('fileSlideOpen', -0.2);
+    } else if (target === 'monitor') {
+      this.state.interactionTarget = 'supporting';
+      this.state.evidence.supporting.inspected = true;
+      this.queueAudioEvent('monitorCrt', 0.25);
+    } else if (target === 'access_record') {
+      this.state.interactionTarget = 'contradictory';
+      this.state.evidence.contradictory.inspected = true;
+      this.queueAudioEvent('timestampClick', 0.3);
+    } else if (target === 'compare') {
+      this.state.compareActive = true;
+      this.state.interactionTarget = 'contradictory';
+      this.queueAudioEvent('anomalyChime', 0);
+    } else {
+      this.state.interactionTarget = null;
+      this.state.compareActive = false;
+      this.state.activeEvidenceInspect = null;
+    }
+
+    this.notify();
+  }
+
+  /** Scrub surveillance monitor timeline (0 = 21:13:50, 1 = 21:14:00, 2 = 21:14:03 anomaly, 3 = 21:14:15) */
+  setMonitorScrub(timeIndex: number): void {
+    const clamped = Math.max(0, Math.min(3, timeIndex));
+    this.state.monitorTimeIndex = clamped;
+    this.queueAudioEvent('scrubClick', 0);
+
+    if (clamped === 2 && !this.state.anomalyDiscovered) {
+      this.state.anomalyDiscovered = true;
+      this.queueAudioEvent('anomalyChime', 0);
+    }
+
+    this.notify();
+  }
+
+  // ── Player Interactions (timeline overlays & backward compat) ───────
+
+  /** Interaction I: Inspect the claim / case file */
   inspectClaim(): void {
     if (!INTERACTION_WINDOWS.claimInspect.includes(this.state.act)) return;
 
     this.state.isInteracting = true;
     this.state.interactionTarget = 'claim';
+    this.state.activeInspect = 'case_file';
     this.state.claimInspected = true;
     this.queueAudioEvent('artifactInspect', 0);
     this.notify();
@@ -447,10 +514,11 @@ export class CinematicEngine {
     if (this.state.interactionTarget !== 'claim') return;
     this.state.isInteracting = false;
     this.state.interactionTarget = null;
+    this.state.activeInspect = 'none';
     this.notify();
   }
 
-  /** Interaction II: Inspect evidence artifact — overlay only */
+  /** Interaction II: Inspect evidence artifact */
   inspectEvidence(id: EvidenceId): void {
     if (!INTERACTION_WINDOWS.evidenceInspect.includes(this.state.act)) return;
     if (this.state.activeEvidenceInspect === id) return;
@@ -459,12 +527,19 @@ export class CinematicEngine {
     this.state.interactionTarget = id;
     this.state.activeEvidenceInspect = id;
 
+    if (id === 'supporting') {
+      this.state.activeInspect = 'monitor';
+    } else if (id === 'contradictory') {
+      this.state.activeInspect = 'access_record';
+    } else {
+      this.state.activeInspect = 'case_file';
+    }
+
     if (!this.state.evidence[id].inspected) {
       this.state.evidence[id].inspected = true;
       this.state.evidence[id].inspectOrder = this.state.nextInspectOrder++;
     }
 
-    // Pan follows the artifact's dock position in the chamber
     const pan = id === 'supporting' ? -0.6 : id === 'incomplete' ? -0.5 : 0.6;
     this.queueAudioEvent('artifactInspect', pan);
     this.notify();
@@ -476,6 +551,7 @@ export class CinematicEngine {
     this.state.activeEvidenceInspect = null;
     this.state.isInteracting = false;
     this.state.interactionTarget = null;
+    this.state.activeInspect = 'none';
     this.notify();
   }
 

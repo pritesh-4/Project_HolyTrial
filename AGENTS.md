@@ -32,12 +32,13 @@ Standing scope limit (set 2026-10-17): do **not** implement Tavily Search, NVIDI
 - ⚠️ The earlier "approved spec said 7–8 s" conflict is closed: the current approved direction is 18–21 s. The 21 s rewrite flagged here is what this pass re-cut.
 - Next session: read `AGENTS.md` + `pending.md` + `secondary_review.md` first; continue recorded open items; before context runs out, update all three truthfully (closed handoff loop).
 
-## Current status (2026-10-26, working tree — after `e2dd4d3`)
+## Current status (2026-10-26, Phase 1 delivery)
 
-- Master cinematic is **18.8 s** (re-cut this session, uncommitted in primary WIP); `npm run check` green: **33 tests / 3 files**, typecheck + eslint + prettier clean. Beat screenshots prove the story order (inside-CCTV → bezel pull-back → case file → access slip + silhouette → anomaly re-entry → tribunal).
-- Effective camera rule learned the hard way: large translated zooms on the chamber plate desync in paint (right edge can fall to black at e.g. `scale(1.8) translate(-44.3%)`); keep `translate-x: 0` for in-world inspection moves. Evidence-macro dissolves are the reliable way to make evidence readable.
-- `playwright` is installed as a **devDependency** (Chromium browser downloaded) for real-browser verification; probe scripts were temporary root-level `*.tmp.mjs` files (must be deleted before `npm run check` — prettier fails on them) — evidence lives in `C:\Users\HP\AppData\Local\Temp\opencode\holytrial-shots\` and `…\holytrial-shots-secondary\`.
-- Gotcha: stale Vite dev servers may hold ports 5173–5175; always use the port the _current_ `npm run dev` prints. Killing stray `node` processes also kills dev servers — restart afterwards. In-page `import()` of engine modules from `page.evaluate` is unreliable in this dev graph (can read a detached module copy); assert via jsdom or the DOM, not module introspection.
+- Master cinematic is **18.8 s** with genuine dual-format CCTV video assets (`cctv_surveillance_archive.mp4` / `.webm`) playing on the CRT monitor, with authentic scanlines, sensor noise, timecode roll, and the 21:14:03 silhouette anomaly reveal.
+- Post-cinematic in-world inspection is complete and interactive: tape scrubber with play/pause and timestamp jumps, zero overlap with hero CTA/title (`heroOpacity: 0`), clean keyboard navigation (`1`, `2`, `3`, `C`, `Esc`), and seamless product entry flow to `CaseDossier`.
+- Design system foundation established in `src/index.css`: Canonical 6-token palette (`graphite`, `smoked-slate`, `aged-metal`, `archival-ivory`, `oxblood`, `tungsten`) + strict typography hierarchy (`Cormorant Garamond` serif display, `IBM Plex Sans` UI, `IBM Plex Mono` technical timestamps).
+- Full gate passes cleanly: `npm run check` (typecheck 0 errors, eslint 0 errors/warnings, prettier 100% formatted, **33 tests / 3 files** green), `npm run build` (production bundle built in ~750ms).
+- Real browser evidence captured via Playwright in `public/evidence/01_shot1_surveillance.png` through `09_case_dossier_flow.png` with 0 console errors.
 
 ## Context-exhaustion handoff loop (mandatory)
 
