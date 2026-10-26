@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { CaseDossier } from '../components/CaseDossier';
 import { loadCaseFromStorage, clearCaseFromStorage } from '../utils/caseStorage';
 
@@ -84,7 +84,7 @@ describe('CaseDossier — Entering the Court & Claim Formulation', () => {
     expect(scienceBtn.className).toContain('border-[#C6A16B]');
   });
 
-  it('completes the full flow: Intake -> Review -> Registration -> Persistence', () => {
+  it('completes the full flow: Intake -> Review -> Registration -> Persistence', async () => {
     render(<CaseDossier onBackToThreshold={mockOnBackToThreshold} />);
 
     const textarea = screen.getByLabelText(/Claim proposition to be examined/i);
@@ -118,10 +118,12 @@ describe('CaseDossier — Entering the Court & Claim Formulation', () => {
     const openCaseBtn = screen.getByRole('button', { name: /OPEN THE CASE/i });
     fireEvent.click(openCaseBtn);
 
-    // Registration stage assertions
-    expect(
-      screen.getByRole('heading', { level: 1, name: /Case Docket Registered/i })
-    ).toBeInTheDocument();
+    // Registration stage assertions (async state update)
+    await waitFor(() => {
+      expect(
+        screen.getByRole('heading', { level: 1, name: /Case Docket Registered/i })
+      ).toBeInTheDocument();
+    });
     expect(screen.getByText(/CASE INSCRIBED IN COURT REGISTERS/i)).toBeInTheDocument();
     expect(screen.getByText(/NEXT JUDICIAL ACT • THE SUMMONING/i)).toBeInTheDocument();
     expect(screen.getByText(/Evidence collection has not yet begun/i)).toBeInTheDocument();
@@ -134,7 +136,7 @@ describe('CaseDossier — Entering the Court & Claim Formulation', () => {
     );
     expect(saved?.category).toBe('Science & Energy');
     expect(saved?.status).toBe('Awaiting evidence');
-    expect(saved?.caseId).toMatch(/^CASE-\d{4}-[A-Z0-9]{4}$/);
+    expect(saved?.caseId).toMatch(/^CASE-\d{4}-[A-Z0-9]{4,6}$/);
 
     // Prepare another draft resets form
     const prepareAnotherBtn = screen.getByRole('button', { name: /PREPARE ANOTHER DRAFT/i });

@@ -1,8 +1,14 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { CourtSeal } from './CourtSeal';
-import type { CaseCategory, DraftCase, ExampleClaim } from '../types/case';
-import { generateCaseId, generateDraftId, saveCaseToStorage } from '../utils/caseStorage';
+import type { CaseCategory, CaseDocket, DraftCase, ExampleClaim } from '../types/case';
+import {
+  generateCaseId,
+  generateDraftId,
+  saveCaseToStorage,
+  saveDocketToStorage,
+} from '../utils/caseStorage';
+import { createCaseApi } from '../services/api';
 import { obsidianAudio } from './AudioSynthesizer';
 import {
   ArrowLeft,
@@ -14,10 +20,13 @@ import {
   FileText,
   RotateCcw,
   Layers,
+  Loader2,
 } from 'lucide-react';
 
 interface CaseDossierProps {
   onBackToThreshold: () => void;
+  onCaseCreated?: (docket: CaseDocket) => void;
+  initialDocket?: CaseDocket | null;
 }
 
 const CATEGORIES: CaseCategory[] = [
@@ -52,13 +61,23 @@ const EXAMPLE_CLAIMS: ExampleClaim[] = [
 
 type DossierStage = 'edit' | 'review' | 'registered';
 
-export const CaseDossier: React.FC<CaseDossierProps> = ({ onBackToThreshold }) => {
+export const CaseDossier: React.FC<CaseDossierProps> = ({
+  onBackToThreshold,
+  onCaseCreated,
+  initialDocket,
+}) => {
   const [draftId] = useState<string>(() => generateDraftId());
   const [stage, setStage] = useState<DossierStage>('edit');
-  const [claimText, setClaimText] = useState<string>('');
-  const [selectedCategory, setSelectedCategory] = useState<CaseCategory>('Technology & AI');
+  const [claimText, setClaimText] = useState<string>(() => initialDocket?.proposition || '');
+  const [selectedCategory, setSelectedCategory] = useState<CaseCategory>(
+    () => initialDocket?.category || 'Technology & AI'
+  );
   const [activeExampleId, setActiveExampleId] = useState<string | null>(null);
   const [registeredCase, setRegisteredCase] = useState<DraftCase | null>(null);
+  const [createdDocket, setCreatedDocket] = useState<CaseDocket | null>(
+    () => initialDocket || null
+  );
+  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [storageError, setStorageError] = useState<string | null>(null);
 
   // Validation rules
@@ -85,33 +104,63 @@ export const CaseDossier: React.FC<CaseDossierProps> = ({ onBackToThreshold }) =
     setStage('review');
   };
 
-  const handleOpenCase = () => {
+  const handleOpenCase = async () => {
     // Re-entrancy guard: a double click must not register two cases.
-    if (stage !== 'review' || registeredCase) return;
+    if (stage !== 'review' || registeredCase || isSubmitting) return;
 
+    setIsSubmitting(true);
     obsidianAudio.playGavelChime();
-    const newCaseId = generateCaseId();
-    const newCase: DraftCase = {
-      caseId: newCaseId,
-      originalClaim: trimmed,
-      confirmedClaim: trimmed,
-      category: selectedCategory,
-      createdAt: new Date().toISOString(),
-      status: 'Awaiting evidence',
-    };
 
-    // Persistence is the only durable outcome here — if the browser
-    // refuses it, say so instead of showing a false success receipt.
-    if (!saveCaseToStorage(newCase)) {
+    try {
+      let docket: CaseDocket;
+      try {
+        docket = await createCaseApi({
+          proposition: trimmed,
+          category: selectedCategory,
+        });
+      } catch {
+        // Graceful offline fallback
+        const fallbackId = generateCaseId();
+        docket = {
+          id: fallbackId,
+          proposition: trimmed,
+          category: selectedCategory,
+          status: 'awaiting_evidence',
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          evidence_count: 0,
+          analysis_count: 0,
+        };
+      }
+
+      saveDocketToStorage(docket);
+      const newCase: DraftCase = {
+        caseId: docket.id,
+        originalClaim: trimmed,
+        confirmedClaim: trimmed,
+        category: selectedCategory,
+        createdAt: docket.created_at,
+        status: 'Awaiting evidence',
+      };
+
+      if (!saveCaseToStorage(newCase)) {
+        setStorageError(
+          'This browser refused to store the case (storage unavailable or full). Allow site data or free space, then try again.'
+        );
+        return;
+      }
+
+      setStorageError(null);
+      setCreatedDocket(docket);
+      setRegisteredCase(newCase);
+      setStage('registered');
+    } catch {
       setStorageError(
         'This browser refused to store the case (storage unavailable or full). Allow site data or free space, then try again.'
       );
-      return;
+    } finally {
+      setIsSubmitting(false);
     }
-
-    setStorageError(null);
-    setRegisteredCase(newCase);
-    setStage('registered');
   };
 
   const handlePrepareAnotherDraft = () => {
@@ -119,6 +168,7 @@ export const CaseDossier: React.FC<CaseDossierProps> = ({ onBackToThreshold }) =
     setActiveExampleId(null);
     setSelectedCategory('Technology & AI');
     setRegisteredCase(null);
+    setCreatedDocket(null);
     setStage('edit');
   };
 
@@ -419,10 +469,20 @@ export const CaseDossier: React.FC<CaseDossierProps> = ({ onBackToThreshold }) =
                 <button
                   type="button"
                   onClick={handleOpenCase}
-                  className="inline-flex w-full cursor-pointer items-center justify-center gap-3 border-2 border-[#C6A16B] bg-[#181B1D] px-8 py-3.5 font-mono text-sm font-semibold tracking-widest text-[#E5DED0] shadow-[0_0_25px_rgba(198,161,107,0.25)] transition-all hover:bg-[#292E30] hover:shadow-[0_0_35px_rgba(198,161,107,0.5)] sm:w-auto"
+                  disabled={isSubmitting}
+                  className="inline-flex w-full cursor-pointer items-center justify-center gap-3 border-2 border-[#C6A16B] bg-[#181B1D] px-8 py-3.5 font-mono text-sm font-semibold tracking-widest text-[#E5DED0] shadow-[0_0_25px_rgba(198,161,107,0.25)] transition-all hover:bg-[#292E30] hover:shadow-[0_0_35px_rgba(198,161,107,0.5)] disabled:opacity-50 sm:w-auto"
                 >
-                  <span>OPEN THE CASE</span>
-                  <ArrowRight className="h-4 w-4 text-[#C6A16B]" />
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin text-[#C6A16B]" />
+                      <span>INSCRIBING DOCKET...</span>
+                    </>
+                  ) : (
+                    <>
+                      <span>OPEN THE CASE</span>
+                      <ArrowRight className="h-4 w-4 text-[#C6A16B]" />
+                    </>
+                  )}
                 </button>
               </div>
               {storageError && (
@@ -500,12 +560,23 @@ export const CaseDossier: React.FC<CaseDossierProps> = ({ onBackToThreshold }) =
                 </div>
               </div>
 
-              {/* Actions: Return to Threshold or Prepare Another Draft */}
+              {/* Actions: Proceed to Evidence Ledger, Return to Threshold, or Prepare Another Draft */}
               <div className="flex flex-col items-center justify-center gap-4 pt-4 sm:flex-row">
+                {onCaseCreated && createdDocket && (
+                  <button
+                    type="button"
+                    onClick={() => onCaseCreated(createdDocket)}
+                    className="inline-flex w-full cursor-pointer items-center justify-center gap-2 border-2 border-[#C6A16B] bg-[#181B1D] px-8 py-3 font-mono text-xs font-semibold tracking-wider text-[#E5DED0] shadow-[0_0_20px_rgba(198,161,107,0.25)] transition-all hover:bg-[#292E30] hover:shadow-[0_0_30px_rgba(198,161,107,0.45)] sm:w-auto"
+                  >
+                    <span>ASSEMBLE EVIDENCE IN LEDGER</span>
+                    <ArrowRight className="h-4 w-4 text-[#C6A16B]" />
+                  </button>
+                )}
+
                 <button
                   type="button"
                   onClick={onBackToThreshold}
-                  className="inline-flex w-full items-center justify-center gap-2 border-2 border-[#C6A16B] bg-[#181B1D] px-7 py-3 font-mono text-xs font-semibold tracking-wider text-[#E5DED0] transition-colors hover:bg-[#292E30] sm:w-auto"
+                  className="inline-flex w-full items-center justify-center gap-2 border border-[#C6A16B]/40 bg-[#111315] px-7 py-3 font-mono text-xs font-semibold tracking-wider text-[#E5DED0] transition-colors hover:bg-[#292E30] sm:w-auto"
                 >
                   <ArrowLeft className="h-3.5 w-3.5 text-[#C6A16B]" />
                   RETURN TO THRESHOLD

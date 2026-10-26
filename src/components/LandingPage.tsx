@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { RoomWasNeverEmptyScene } from './RoomWasNeverEmptyScene';
 import { CharterDrawer } from './CharterDrawer';
-import { CaseDossier } from './CaseDossier';
+import { JudicialWorkspace } from './JudicialWorkspace';
 import { useCinematic } from './useCinematic';
 import { Volume2, VolumeX } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
@@ -82,19 +82,21 @@ export const LandingPage: React.FC = () => {
       <div className="pointer-events-none absolute inset-0 z-10 bg-gradient-to-t from-[#111315] via-transparent to-[#111315]/60" />
 
       {/* ── Sound Toggle — floating, top-right (starts muted, accessible) ── */}
-      <button
-        type="button"
-        onClick={handleToggleAudio}
-        className="fixed top-5 right-5 z-50 flex h-9 w-9 items-center justify-center rounded-full border border-[#C6A16B]/30 bg-[#111315]/60 backdrop-blur-sm transition-all duration-300 hover:border-[#C6A16B] hover:bg-[#181B1D]/80 focus-visible:border-[#C6A16B] focus-visible:ring-1 focus-visible:ring-[#C6A16B]/60 focus-visible:outline-none"
-        title={isAudioActive ? 'Mute Sound' : 'Enable Sound'}
-        aria-label={isAudioActive ? 'Mute Sound' : 'Enable Sound'}
-      >
-        {isAudioActive ? (
-          <Volume2 className="h-3.5 w-3.5 text-[#C6A16B]" />
-        ) : (
-          <VolumeX className="h-3.5 w-3.5 text-[#555859]" />
-        )}
-      </button>
+      {currentView === 'threshold' && (
+        <button
+          type="button"
+          onClick={handleToggleAudio}
+          className="fixed top-5 right-5 z-50 flex h-9 w-9 items-center justify-center rounded-full border border-[#C6A16B]/30 bg-[#111315]/60 backdrop-blur-sm transition-all duration-300 hover:border-[#C6A16B] hover:bg-[#181B1D]/80 focus-visible:border-[#C6A16B] focus-visible:ring-1 focus-visible:ring-[#C6A16B]/60 focus-visible:outline-none"
+          title={isAudioActive ? 'Mute Sound' : 'Enable Sound'}
+          aria-label={isAudioActive ? 'Mute Sound' : 'Enable Sound'}
+        >
+          {isAudioActive ? (
+            <Volume2 className="h-3.5 w-3.5 text-[#C6A16B]" />
+          ) : (
+            <VolumeX className="h-3.5 w-3.5 text-[#555859]" />
+          )}
+        </button>
+      )}
 
       {/* ── Main View ── */}
       <AnimatePresence>
@@ -169,7 +171,7 @@ export const LandingPage: React.FC = () => {
             transition={{ duration: 0.45 }}
             className="fixed inset-0 z-40 flex flex-col justify-between overflow-y-auto bg-[#111315]/95 backdrop-blur-md"
           >
-            <CaseDossier onBackToThreshold={handleReturnToThreshold} />
+            <JudicialWorkspace onBackToThreshold={handleReturnToThreshold} />
           </motion.div>
         )}
       </AnimatePresence>
