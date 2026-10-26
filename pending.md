@@ -20,6 +20,48 @@ Legend: ✅ done (evidence cited) · ◐ partial (residual listed) · P0/P1/P2 p
 browser pass executed.** Remaining residuals are explicitly listed per item and
 in §"Open items".
 
+### 2026-10-26 — Secondary re-cut pass (uncommitted, inside primary WIP)
+
+The master timeline was **re-cut 21.0 s → 18.8 s** (−10.5 % idle redundancy, the
+18–21 s mandate) and post-cinematic evidence inspection was redesigned. All of
+it lives in the primary's uncommitted working tree (`src/components/
+CinematicEngine.ts`, `RoomWasNeverEmptyScene.tsx`, `LandingPage.tsx`,
+`src/test/CinematicEngine.test.ts`) — the primary should absorb or re-apply
+deliberately; nothing was committed over their WIP.
+
+- `ACT_DURATIONS` now OPENING 2.7 / AWAKENING 3.2 / EVIDENCE 3.4 / OPPOSITION
+  3.4 / WEIGHING 2.5 / REVELATION 2.35 / FINALE 1.25 = **18.8 s**;
+  `ACT_PROGRESS_RANGES` and the scene's 7 shot fractions were remapped to the
+  same second-marks (3.0/5.5/8.5/12.0/16.0/17.55 s), `breakFrameScale` 0.16→0.293.
+- Tests updated to the new spec: `HARD_LIMIT_S = 21.0`, `TARGET_S = 18.8`,
+  CTA-window assertions ≥ 17.5 s. **`npm run check` green: 33/33 tests, 3 files**
+  (typecheck, eslint, prettier clean).
+- Browser-verified (Chromium 1280×760, zero console errors): CTA visible at
+  **≈17.6 s** wall-clock; beat screenshots at 1.5/4/6/7.5/10.5/13/15.5/17 s show
+  the correct story beats — inside-CCTV → bezel pull-back → case file → access
+  slip + silhouette → full-frame anomaly re-entry ("REC 21:14:03 · THE CAMERA
+  WAS LYING") → tribunal settle. Evidence: `%TEMP%\opencode\
+holytrial-shots-secondary\p17-beat-*.png`.
+- **Inspection redesign (replaces chamber crop-window zooms):** `case_file`
+  now dissolves to the dedicated `shot2_case_file.jpg` macro plate,
+  `access_record` to `shot4_contradiction_record.jpg`, with a modest
+  `scale(1.12) translateY(-2%)` lean; `monitor` uses a centered
+  `scale(1.3) translateY(-4%)` push-in (the old 1.8/−44.3 % glide exposed a
+  compositor paint desync — right edge fell to black); `compare` unchanged
+  (1.35/0/−4 %). Screenshots: `p15-case-macro.png`, `p15-access-macro.png`,
+  `p15-monitor-glide.png`, `p15-compare.png`.
+- **Hero dim during inspection:** the title/CTA block drops to 0.25 opacity
+  while a panel is open (`LandingPage.tsx` `heroOpacity`) — previously "HOLY
+  TRIAL" sat on top of "CASE RECORD 094-B" in the case-file macro.
+- Residuals for the primary: large translated zooms remain unreliable (paint vs
+  DOM matrix unreconciled on this machine — keep `translate-x: 0` for in-world
+  camera moves); panels still lack `role="dialog"`/`aria-modal`/`autoFocus`;
+  orphan plates `shot1_rain_arrival.jpg` (736 kB) + `shot3_monitor_empty.jpg`
+  (668 kB) are unreferenced; `WebGlFallback`/`Tribunal3D/` remain dead code.
+- Env note: a `Stop-Process node` cleanup here also killed the running Vite dev
+  servers; any later probe must point at the port the _current_ `npm run dev`
+  prints (it moved 5175 → 5173 after the restart).
+
 ## P0 — Acceptance-critical
 
 - [x] **P0-1. Real-browser visual verification of the 7.5 s cinematic** — ✅ **DONE (browser-verified)**
