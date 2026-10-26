@@ -43,3 +43,19 @@ Thumbs.db
 *.njsproj
 *.sln
 *.sw?
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+env/
+venv/
+.pytest_cache/
+
+# Backend storage & persistence
+*.db
+*.sqlite3
+storage/
+uploads/
+

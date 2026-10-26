@@ -81,7 +81,7 @@ describe('CaseDossier — Entering the Court & Claim Formulation', () => {
 
     const scienceBtn = screen.getByRole('button', { name: /Science & Energy/i });
     fireEvent.click(scienceBtn);
-    expect(scienceBtn.className).toContain('border-[#B9975B]');
+    expect(scienceBtn.className).toContain('border-[#C6A16B]');
   });
 
   it('completes the full flow: Intake -> Review -> Registration -> Persistence', () => {
